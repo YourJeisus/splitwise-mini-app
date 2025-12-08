@@ -1,6 +1,34 @@
 type RequestOptions = {
   method?: string;
-  body?: any;
+  body?: unknown;
+};
+
+export type User = {
+  id: string;
+  telegramId: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+};
+
+export type Friend = {
+  id: string;
+  telegramId: string;
+  firstName?: string;
+  lastName?: string;
+};
+
+export type Group = {
+  id: string;
+  name: string;
+  currency: string;
+  role: string;
+};
+
+export type GroupBalance = {
+  group: { id: string; name: string; currency: string };
+  balances: Record<string, number>;
+  expensesCount: number;
 };
 
 export const createApiClient = (initData: string) => {
@@ -25,16 +53,17 @@ export const createApiClient = (initData: string) => {
 
   return {
     hasAuth: () => Boolean(initData),
-    verify: () => request('/auth/verify', { method: 'POST', body: { initData } }),
-    listFriends: () => request('/users/friends'),
-    addFriend: (telegramId: string) => request('/users/friends', { method: 'POST', body: { telegramId } }),
-    listGroups: () => request('/groups'),
+    verify: () => request<User>('/auth/verify', { method: 'POST', body: { initData } }),
+    listFriends: () => request<Friend[]>('/users/friends'),
+    addFriend: (telegramId: string) => request<Friend>('/users/friends', { method: 'POST', body: { telegramId } }),
+    listGroups: () => request<Group[]>('/groups'),
     createGroup: (payload: { name: string; currency?: string; memberIds?: string[] }) =>
-      request('/groups', { method: 'POST', body: payload }),
-    getGroupBalance: (groupId: string) => request(`/groups/${groupId}/balance`),
-    createExpense: (payload: any) => request('/expenses', { method: 'POST', body: payload }),
+      request<Group>('/groups', { method: 'POST', body: payload }),
+    getGroupBalance: (groupId: string) => request<GroupBalance>(`/groups/${groupId}/balance`),
+    createExpense: (payload: { groupId: string; description: string; amount: number; currency: string; shares: { userId: string; paid: number; owed: number }[] }) =>
+      request<{ id: string }>('/expenses', { method: 'POST', body: payload }),
     createSettlement: (payload: { toUserId: string; amount: number; currency?: string; note?: string }) =>
-      request('/settlements', { method: 'POST', body: payload })
+      request<{ id: string }>('/settlements', { method: 'POST', body: payload })
   };
 };
 

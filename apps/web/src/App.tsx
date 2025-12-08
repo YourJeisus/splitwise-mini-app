@@ -1,14 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import './App.css';
-import { createApiClient } from './api';
-
-type Group = { id: string; name: string; currency: string; role: string };
-type GroupBalance = { group: { id: string; name: string; currency: string }; balances: Record<string, number>; expensesCount: number };
+import { createApiClient, User, Friend, Group, GroupBalance } from './api';
 
 function App() {
   const [initData, setInitData] = useState('');
-  const [user, setUser] = useState<any>(null);
-  const [friends, setFriends] = useState<any[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [friends, setFriends] = useState<Friend[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [status, setStatus] = useState('Ожидание Telegram...');
   const [friendTgId, setFriendTgId] = useState('');
