@@ -13,6 +13,9 @@
     "lint": "npm run lint --workspaces",
     "test": "npm run test --workspaces",
     "build": "npm run build --workspaces",
+    "build:backend": "npm run build --workspace backend",
+    "start": "npm run start:prod --workspace backend",
+    "prisma:deploy": "npm run prisma:deploy --workspace backend",
     "format": "prettier --write ."
   },
   "devDependencies": {
