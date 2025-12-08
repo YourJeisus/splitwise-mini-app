@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import './App.css';
-import { createApiClient, User, Friend, Group, GroupBalance } from './api';
+import { createApiClient } from './api';
+import type { User, Friend, Group, GroupBalance } from './api';
 
 function App() {
   const [initData, setInitData] = useState('');
