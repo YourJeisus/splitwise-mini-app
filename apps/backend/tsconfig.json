@@ -5,6 +5,7 @@
     "rootDir": "src",
     "sourceMap": true
   },
-  "include": ["src/**/*", "prisma/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["prisma/**/*", "dist/**/*"]
 }
 
