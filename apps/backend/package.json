@@ -8,7 +8,7 @@
     "start": "node dist/main.js",
     "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts",
     "start:prod": "NODE_ENV=production node dist/main.js",
-    "build": "tsc -p tsconfig.json",
+    "build": "prisma generate && tsc -p tsconfig.json",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "test": "vitest run",
     "test:watch": "vitest watch",
