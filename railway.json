@@ -1,0 +1,29 @@
+{
+  "builds": [
+    {
+      "src": "apps/backend",
+      "use": "@railwayjs/nixpacks:latest",
+      "install": "npm install",
+      "build": "npm run build --workspace backend"
+    },
+    {
+      "src": "apps/web",
+      "use": "@railwayjs/nixpacks:latest",
+      "install": "npm install",
+      "build": "npm run build --workspace web"
+    }
+  ],
+  "deploy": {
+    "backend": {
+      "command": "npm run prisma:deploy --workspace backend && npm run start:prod --workspace backend",
+      "healthcheckPath": "/health",
+      "env": {
+        "PORT": "3001"
+      }
+    },
+    "web": {
+      "static": "apps/web/dist"
+    }
+  }
+}
+

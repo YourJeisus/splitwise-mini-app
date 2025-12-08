@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(uuid())
+  telegramId   String         @unique
+  username     String?
+  firstName    String?
+  lastName     String?
+  avatarUrl    String?
+  friendshipsSent Friendship[] @relation("FriendFrom")
+  friendshipsRecv Friendship[] @relation("FriendTo")
+  groupMembers GroupMember[]
+  expenses     Expense[]      @relation("UserExpenses")
+  shares       ExpenseShare[]
+  settlementsFrom Settlement[] @relation("SettlementFrom")
+  settlementsTo   Settlement[] @relation("SettlementTo")
+  notifications Notification[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model Friendship {
+  id          String            @id @default(uuid())
+  requesterId String
+  addresseeId String
+  status      FriendshipStatus  @default(PENDING)
+  createdAt   DateTime          @default(now())
+
+  requester User @relation("FriendFrom", fields: [requesterId], references: [id])
+  addressee User @relation("FriendTo", fields: [addresseeId], references: [id])
+
+  @@unique([requesterId, addresseeId])
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+model Group {
+  id          String        @id @default(uuid())
+  name        String
+  currency    String        @default("USD")
+  createdById String
+  createdAt   DateTime      @default(now())
+
+  createdBy User @relation(fields: [createdById], references: [id])
+  members   GroupMember[]
+  expenses  Expense[]
+}
+
+model GroupMember {
+  id      String    @id @default(uuid())
+  groupId String
+  userId  String
+  role    GroupRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([groupId, userId])
+}
+
+enum GroupRole {
+  ADMIN
+  MEMBER
+}
+
+model Expense {
+  id          String    @id @default(uuid())
+  groupId     String?
+  createdById String
+  description String
+  amount      Decimal   @db.Decimal(12, 2)
+  currency    String    @default("USD")
+  category    String?
+  createdAt   DateTime  @default(now())
+
+  group     Group? @relation(fields: [groupId], references: [id])
+  createdBy User   @relation("UserExpenses", fields: [createdById], references: [id])
+  shares    ExpenseShare[]
+}
+
+model ExpenseShare {
+  id        String   @id @default(uuid())
+  expenseId String
+  userId    String
+  paid      Decimal  @db.Decimal(12, 2) @default(0)
+  owed      Decimal  @db.Decimal(12, 2) @default(0)
+
+  expense Expense @relation(fields: [expenseId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([expenseId, userId])
+}
+
+model Settlement {
+  id         String   @id @default(uuid())
+  fromUserId String
+  toUserId   String
+  amount     Decimal  @db.Decimal(12, 2)
+  currency   String   @default("USD")
+  note       String?
+  createdAt  DateTime @default(now())
+
+  fromUser User @relation("SettlementFrom", fields: [fromUserId], references: [id])
+  toUser   User @relation("SettlementTo", fields: [toUserId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  data      Json
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+

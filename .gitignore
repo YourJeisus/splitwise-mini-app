@@ -1,0 +1,16 @@
+.DS_Store
+node_modules
+dist
+build
+.turbo
+.next
+.idea
+.env
+.env.*
+coverage
+tmp
+*.log
+apps/backend/prisma/generated
+apps/backend/.env
+apps/web/.env
+
