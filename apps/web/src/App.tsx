@@ -877,13 +877,6 @@ function App() {
             <span className="date-text">Сегодня {formatDate()}</span>
           </div>
         </div>
-        <button
-          className="header-action-btn"
-          onClick={() => setShowCreateGroup(true)}
-          title="Создать группу"
-        >
-          {Icons.plus}
-        </button>
       </header>
 
       {inviteError && (
