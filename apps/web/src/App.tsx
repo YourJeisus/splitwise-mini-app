@@ -415,8 +415,33 @@ function App() {
 
       // Fullscreen mode
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if ((webApp as any).requestFullscreen) {
-        (webApp as any).requestFullscreen();
+      const wa = webApp as any;
+      if (wa.requestFullscreen) {
+        wa.requestFullscreen();
+      }
+
+      // Safe area insets - установка CSS переменных
+      const setSafeAreaVars = () => {
+        const safeArea = wa.safeAreaInset || {};
+        const contentSafeArea = wa.contentSafeAreaInset || {};
+        document.documentElement.style.setProperty(
+          '--tg-safe-area-top',
+          `${safeArea.top || 0}px`
+        );
+        document.documentElement.style.setProperty(
+          '--tg-safe-area-bottom',
+          `${safeArea.bottom || 0}px`
+        );
+        document.documentElement.style.setProperty(
+          '--tg-content-safe-area-top',
+          `${contentSafeArea.top || 0}px`
+        );
+      };
+      setSafeAreaVars();
+      
+      // Слушаем изменения viewport
+      if (wa.onEvent) {
+        wa.onEvent('viewportChanged', setSafeAreaVars);
       }
 
       setInitData(webApp.initData);
@@ -1151,9 +1176,17 @@ function App() {
               <div className="balance-list">
                 {Object.entries(groupBalance.balances).map(([uid, balance]) => (
                   <div className="balance-row" key={uid}>
-                    <div className="balance-user-avatar">
-                      {getUserInitials(groupBalance.userNames?.[uid] || "U")}
-                    </div>
+                    {groupBalance.userAvatars?.[uid] ? (
+                      <img
+                        src={groupBalance.userAvatars[uid]!}
+                        alt=""
+                        className="balance-user-avatar-img"
+                      />
+                    ) : (
+                      <div className="balance-user-avatar">
+                        {getUserInitials(groupBalance.userNames?.[uid] || "U")}
+                      </div>
+                    )}
                     <span className="balance-user-name">
                       {groupBalance.userNames?.[uid] || "Участник"}
                       {uid === user?.id && " (вы)"}

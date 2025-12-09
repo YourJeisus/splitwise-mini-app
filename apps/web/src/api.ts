@@ -33,6 +33,7 @@ export type GroupBalance = {
   group: { id: string; name: string; currency: string; inviteCode?: string };
   balances: Record<string, number>;
   userNames: Record<string, string>;
+  userAvatars?: Record<string, string | null>;
   debts: { fromUserId: string; toUserId: string; amount: number }[];
   expensesCount: number;
 };

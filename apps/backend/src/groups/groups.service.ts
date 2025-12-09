@@ -115,12 +115,14 @@ export class GroupsService {
     if (!group) throw new NotFoundException("Group not found");
 
     const userNames: Record<string, string> = {};
+    const userAvatars: Record<string, string | null> = {};
     const memberIds: string[] = [];
 
     group.members.forEach((member) => {
       memberIds.push(member.userId);
       userNames[member.userId] =
         member.user.firstName || member.user.username || "Участник";
+      userAvatars[member.userId] = member.user.avatarUrl || null;
     });
 
     // Считаем долги между парами: debts[должник][кредитор] = сумма
@@ -213,6 +215,7 @@ export class GroupsService {
       },
       balances,
       userNames,
+      userAvatars,
       debts: debtsList,
       expensesCount: group.expenses.length,
     };

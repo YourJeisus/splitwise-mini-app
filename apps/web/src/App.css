@@ -892,6 +892,15 @@
   flex-shrink: 0;
 }
 
+.balance-user-avatar-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
 .balance-user-name {
   flex: 1;
   font-size: 15px;
