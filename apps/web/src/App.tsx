@@ -1190,7 +1190,6 @@ function App() {
                   {groupExpenses.map((expense) => (
                     <SwipeableExpense
                       key={expense.id}
-                      expense={expense}
                       isOwner={expense.createdBy.id === user?.id}
                       onEdit={() => handleEditExpense(expense)}
                       onDelete={() => handleDeleteExpense(expense.id)}
