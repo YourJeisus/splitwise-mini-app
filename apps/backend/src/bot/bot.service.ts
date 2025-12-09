@@ -27,13 +27,11 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     if (!this.bot) return;
-    try {
-      this.setupHandlers();
-      await this.bot.launch();
-      this.logger.log("Bot started");
-    } catch (error) {
+    this.setupHandlers();
+    this.bot.launch().catch((error) => {
       this.logger.error("Failed to start bot", (error as Error).message);
-    }
+    });
+    this.logger.log("Bot launching...");
   }
 
   async onModuleDestroy() {
