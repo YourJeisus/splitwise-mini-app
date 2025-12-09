@@ -24,9 +24,9 @@
   --nav-text: #ffffff;
   --nav-active: #ffffff;
 
-  /* Статусы */
-  --positive: #22c55e;
-  --negative: #ef4444;
+  /* Статусы - мягкие оттенки для фиолетового фона */
+  --positive: #10b981;
+  --negative: #e879a0;
 
   /* Тени */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);

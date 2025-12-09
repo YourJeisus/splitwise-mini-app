@@ -1,7 +1,112 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import "./App.css";
 import { createApiClient } from "./api";
 import type { User, Group, GroupBalance, Expense } from "./api";
+
+// Swipeable Expense Component
+const SwipeableExpense = ({
+  expense,
+  isOwner,
+  onEdit,
+  onDelete,
+  children,
+}: {
+  expense: Expense;
+  isOwner: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+  children: React.ReactNode;
+}) => {
+  const [swipeX, setSwipeX] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const startX = useRef(0);
+  const currentX = useRef(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!isOwner) return;
+    startX.current = e.touches[0].clientX;
+    currentX.current = e.touches[0].clientX;
+    setIsSwiping(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isSwiping || !isOwner) return;
+    currentX.current = e.touches[0].clientX;
+    const diff = startX.current - currentX.current;
+    if (diff > 0) {
+      setSwipeX(Math.min(diff, 120));
+    } else {
+      setSwipeX(0);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isOwner) return;
+    setIsSwiping(false);
+    if (swipeX > 60) {
+      setSwipeX(120);
+    } else {
+      setSwipeX(0);
+    }
+  };
+
+  const handleClose = () => {
+    setSwipeX(0);
+  };
+
+  return (
+    <div className="swipeable-expense-wrapper">
+      <div
+        className="expense-item"
+        style={{
+          transform: `translateX(-${swipeX}px)`,
+          transition: isSwiping ? "none" : "transform 0.3s ease",
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onClick={swipeX > 0 ? handleClose : undefined}
+      >
+        {children}
+      </div>
+      {isOwner && (
+        <div
+          className="swipe-actions"
+          style={{
+            width: `${swipeX}px`,
+            opacity: swipeX > 30 ? 1 : 0,
+          }}
+        >
+          <button className="swipe-action-btn edit" onClick={onEdit}>
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+            >
+              <path d="M4.5 17.207V19a.5.5 0 0 0 .5.5h1.793a.5.5 0 0 0 .353-.146l8.5-8.5l-2.5-2.5l-8.5 8.5a.5.5 0 0 0-.146.353Z" />
+              <path d="M15.09 6.41l2.5 2.5l1.203-1.203a1 1 0 0 0 0-1.414l-1.086-1.086a1 1 0 0 0-1.414 0z" />
+            </svg>
+          </button>
+          <button className="swipe-action-btn delete" onClick={onDelete}>
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            >
+              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+            </svg>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const CURRENCIES = [
   { code: "RUB", name: "Российский рубль", symbol: "₽" },
@@ -22,7 +127,6 @@ const CURRENCIES = [
 ];
 
 type Tab = "balance" | "expenses";
-type Screen = "home" | "groups" | "activity" | "profile";
 
 type InviteInfo = {
   id: string;
@@ -35,11 +139,171 @@ type InviteInfo = {
 const GROUP_COLORS = ["yellow", "blue", "pink", "green", "purple", "orange"];
 const GROUP_ICONS = ["👥", "🏠", "✈️", "🎉", "💼", "🍕", "🎮", "🛒"];
 
+const DEV_USERS = [
+  { id: "dev_111", name: "Алекс", emoji: "👨‍💻" },
+  { id: "dev_222", name: "Мария", emoji: "👩‍💼" },
+  { id: "dev_333", name: "Иван", emoji: "👨‍🔧" },
+];
+
+const isDevMode = () => {
+  const initData = import.meta.env.VITE_TG_INIT_DATA as string;
+  return initData?.startsWith("dev_") && !window.Telegram?.WebApp?.initData;
+};
+
+// SVG Icons
+const Icons = {
+  plus: (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+    >
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  ),
+  // Monefy - для погашения долга
+  money: (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 48 48"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    >
+      <path d="M39.523 23.115v-4.4a1.003 1.003 0 0 0-1.004-1.003H9.553" />
+      <path d="M12.705 14.2h-4.95A2.254 2.254 0 0 0 5.5 16.454h0v24.022a1.93 1.93 0 0 0 1.93 1.93h30.162a1.93 1.93 0 0 0 1.93-1.93v-4.44m2.978 3.93V16.98a2.78 2.78 0 0 0-2.78-2.78h-1.65" />
+      <path d="M35.512 33.423a3.843 3.843 0 0 1 0-7.687m0 7.687h4l2.955-1.817m-6.955-5.87h4l2.955-1.816m-5.285-6.39l-2.377-6.134l-15.424 6.226m12.882-5.46l-4.984-6.568l-16.076 11.902" />
+      <circle cx="35.161" cy="29.579" r=".634" fill="currentColor" />
+    </svg>
+  ),
+  // EditOutline - редактирование
+  edit: (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+    >
+      <path d="M4.5 17.207V19a.5.5 0 0 0 .5.5h1.793a.5.5 0 0 0 .353-.146l8.5-8.5l-2.5-2.5l-8.5 8.5a.5.5 0 0 0-.146.353Z" />
+      <path d="M15.09 6.41l2.5 2.5l1.203-1.203a1 1 0 0 0 0-1.414l-1.086-1.086a1 1 0 0 0-1.414 0z" />
+    </svg>
+  ),
+  // CopyLink - копирование ссылки
+  copy: (
+    <svg width="18" height="18" viewBox="0 0 32 32" fill="currentColor">
+      <path d="M11.947 19a4.948 4.948 0 0 1-3.499-8.446l5.106-5.105a4.948 4.948 0 0 1 6.998 6.998l-.553.552l-1.415-1.413l.557-.557a2.95 2.95 0 0 0-.004-4.166a3.02 3.02 0 0 0-4.17 0l-5.104 5.104a2.947 2.947 0 0 0 0 4.17a3.02 3.02 0 0 0 4.17 0l1.414 1.414a4.918 4.918 0 0 1-3.5 1.449" />
+      <path d="M19.947 17a4.948 4.948 0 0 1-3.499-8.446L17.001 8l1.414 1.415l-.552.552a2.948 2.948 0 0 0 0 4.169a3.02 3.02 0 0 0 4.17 0l5.105-5.105a2.951 2.951 0 0 0 0-4.168a3.02 3.02 0 0 0-4.17 0l-1.414-1.415a4.948 4.948 0 0 1 6.998 6.998l-5.104 5.103a4.92 4.92 0 0 1-3.5 1.45" />
+      <path d="M24 30H4a2.002 2.002 0 0 1-2-2V8a2.002 2.002 0 0 1 2-2h4v2H4v20h20V18h2v10a2.002 2.002 0 0 1-2 2" />
+    </svg>
+  ),
+  // ShareBox - поделиться
+  share: (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    >
+      <path d="M12 3v12m0-12L8 7m4-4l4 4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17" />
+    </svg>
+  ),
+  // AccountBalanceWalletOutline - баланс
+  balance: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M5 17v2V5zm.615 3q-.67 0-1.143-.472Q4 19.056 4 18.385V5.615q0-.67.472-1.143Q4.944 4 5.615 4h12.77q.67 0 1.143.472q.472.472.472 1.143v2.943h-1V5.615q0-.269-.173-.442T18.385 5H5.615q-.269 0-.442.173T5 5.615v12.77q0 .269.173.442t.442.173h12.77q.269 0 .442-.173t.173-.442v-2.943h1v2.943q0 .67-.472 1.143q-.472.472-1.143.472zm8-4q-.67 0-1.143-.472Q12 15.056 12 14.385v-4.77q0-.67.472-1.143Q12.944 8 13.615 8h5.77q.67 0 1.143.472q.472.472.472 1.143v4.77q0 .67-.472 1.143q-.472.472-1.143.472zm5.77-1q.269 0 .442-.173t.173-.442v-4.77q0-.269-.173-.442T19.385 9h-5.77q-.269 0-.442.173T13 9.615v4.77q0 .269.173.442t.442.173zM16 13.5q.625 0 1.063-.437T17.5 12t-.437-1.062T16 10.5t-1.062.438T14.5 12t.438 1.063T16 13.5" />
+    </svg>
+  ),
+  receipt: (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    >
+      <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1z" />
+      <path d="M8 10h8M8 14h8" />
+    </svg>
+  ),
+  chevronDown: (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  ),
+  chevronUp: (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    >
+      <path d="M18 15l-6-6-6 6" />
+    </svg>
+  ),
+  archive: (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    >
+      <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" />
+    </svg>
+  ),
+  trash: (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    >
+      <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+    </svg>
+  ),
+  // AccountBalanceWalletOutline - для hero decoration (большой кошелёк)
+  wallet: (
+    <svg width="80" height="80" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M5 17v2V5zm.615 3q-.67 0-1.143-.472Q4 19.056 4 18.385V5.615q0-.67.472-1.143Q4.944 4 5.615 4h12.77q.67 0 1.143.472q.472.472.472 1.143v2.943h-1V5.615q0-.269-.173-.442T18.385 5H5.615q-.269 0-.442.173T5 5.615v12.77q0 .269.173.442t.442.173h12.77q.269 0 .442-.173t.173-.442v-2.943h1v2.943q0 .67-.472 1.143q-.472.472-1.143.472zm8-4q-.67 0-1.143-.472Q12 15.056 12 14.385v-4.77q0-.67.472-1.143Q12.944 8 13.615 8h5.77q.67 0 1.143.472q.472.472.472 1.143v4.77q0 .67-.472 1.143q-.472.472-1.143.472zm5.77-1q.269 0 .442-.173t.173-.442v-4.77q0-.269-.173-.442T19.385 9h-5.77q-.269 0-.442.173T13 9.615v4.77q0 .269.173.442t.442.173zM16 13.5q.625 0 1.063-.437T17.5 12t-.437-1.062T16 10.5t-1.062.438T14.5 12t.438 1.063T16 13.5" />
+    </svg>
+  ),
+};
+
 function App() {
   const [initData, setInitData] = useState("");
   const [user, setUser] = useState<User | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [currentScreen, setCurrentScreen] = useState<Screen>("home");
+  const [showArchivedGroups, setShowArchivedGroups] = useState(false);
 
   // Создание группы
   const [showCreateGroup, setShowCreateGroup] = useState(false);
@@ -156,6 +420,12 @@ function App() {
       if (startParam) {
         sessionStorage.setItem("pendingInviteCode", startParam);
       }
+    } else {
+      // Dev mode: используем VITE_TG_INIT_DATA из .env
+      const devInitData = import.meta.env.VITE_TG_INIT_DATA as string;
+      if (devInitData) {
+        setInitData(devInitData);
+      }
     }
   }, []);
 
@@ -163,6 +433,15 @@ function App() {
     if (!api.hasAuth()) return;
     void bootstrap();
   }, [api]);
+
+  const switchDevUser = (devId: string) => {
+    setInitData(devId);
+    setUser(null);
+    setGroups([]);
+    setSelectedGroup("");
+    setGroupBalance(null);
+    setGroupExpenses([]);
+  };
 
   const bootstrap = async () => {
     try {
@@ -286,6 +565,11 @@ function App() {
       owed,
     }));
 
+    // Если плательщик не в списке участников, добавляем его с paid и owed=0
+    if (!selectedParticipants.includes(user.id)) {
+      shares.push({ userId: user.id, paid: expenseAmount, owed: 0 });
+    }
+
     try {
       if (editingExpense) {
         await api.updateExpense(editingExpense.id, {
@@ -332,11 +616,19 @@ function App() {
     setShowAddExpense(true);
   };
 
-  const handleDeleteExpense = async () => {
-    if (!deletingExpenseId || !selectedGroup) return;
+  const handleDeleteExpense = async (expenseId?: string) => {
+    const idToDelete = expenseId || deletingExpenseId;
+    if (!idToDelete || !selectedGroup) return;
+
+    // Если вызван со свайпа - показать подтверждение
+    if (expenseId && !showDeleteConfirm) {
+      setDeletingExpenseId(expenseId);
+      setShowDeleteConfirm("expense");
+      return;
+    }
 
     try {
-      await api.deleteExpense(deletingExpenseId);
+      await api.deleteExpense(idToDelete);
       setShowDeleteConfirm(null);
       setDeletingExpenseId(null);
 
@@ -466,6 +758,84 @@ function App() {
     return groups.reduce((sum, g) => sum + (g.userBalance || 0), 0);
   };
 
+  // Общая сумма: мне должны (положительные балансы)
+  const getTotalOwedToMeAll = () => {
+    return groups.reduce((sum, g) => sum + Math.max(0, g.userBalance || 0), 0);
+  };
+
+  // Общая сумма: я должен (отрицательные балансы)
+  const getTotalIOweAll = () => {
+    return groups.reduce(
+      (sum, g) => sum + Math.abs(Math.min(0, g.userBalance || 0)),
+      0
+    );
+  };
+
+  // Расчёт что я должен/мне должны по конкретному расходу
+  const getMyExpenseShare = (expense: Expense) => {
+    if (!user) return { type: "none" as const, amount: 0, payer: "" };
+
+    const myShare = expense.shares.find((s) => s.userId === user.id);
+    const payerShare = expense.shares.find((s) => Number(s.paid) > 0);
+    const payerName =
+      payerShare?.user?.firstName || payerShare?.user?.username || "Кто-то";
+    const isPayer = payerShare?.userId === user.id;
+
+    if (isPayer) {
+      // Я заплатил — мне должны (сумма owed других участников)
+      const lent = expense.shares
+        .filter((s) => s.userId !== user.id)
+        .reduce((sum, s) => sum + Number(s.owed), 0);
+      return { type: "lent" as const, amount: lent, payer: "Вы заплатили" };
+    } else if (myShare) {
+      // Я не платил, но участвую — я должен
+      return {
+        type: "borrowed" as const,
+        amount: Number(myShare.owed),
+        payer: `${payerName} заплатил(а)`,
+      };
+    }
+    return { type: "none" as const, amount: 0, payer: "" };
+  };
+
+  // Расчёт кто кому должен в группе (из данных бэкенда)
+  const getDebtsBreakdown = () => {
+    if (!groupBalance || !user) return { iOwe: [], owedToMe: [] };
+
+    const iOwe: { name: string; amount: number }[] = [];
+    const owedToMe: { name: string; amount: number }[] = [];
+
+    groupBalance.debts?.forEach((debt) => {
+      if (debt.fromUserId === user.id) {
+        // Я должен кому-то
+        iOwe.push({
+          name: groupBalance.userNames[debt.toUserId] || "Участник",
+          amount: debt.amount,
+        });
+      } else if (debt.toUserId === user.id) {
+        // Мне должны
+        owedToMe.push({
+          name: groupBalance.userNames[debt.fromUserId] || "Участник",
+          amount: debt.amount,
+        });
+      }
+    });
+
+    return { iOwe, owedToMe };
+  };
+
+  // Общая сумма которую я должен
+  const getTotalIOwe = () => {
+    const { iOwe } = getDebtsBreakdown();
+    return iOwe.reduce((sum, d) => sum + d.amount, 0);
+  };
+
+  // Общая сумма которую мне должны
+  const getTotalOwedToMe = () => {
+    const { owedToMe } = getDebtsBreakdown();
+    return owedToMe.reduce((sum, d) => sum + d.amount, 0);
+  };
+
   // Быстрое открытие модалки добавления расхода
   const openQuickExpense = () => {
     if (!selectedGroup && groups[0]) {
@@ -489,7 +859,11 @@ function App() {
       {/* Header */}
       <header className="header">
         <div className="header-left">
-          <div className="avatar">{user?.firstName?.charAt(0) || "👤"}</div>
+          {user?.avatarUrl ? (
+            <img src={user.avatarUrl} alt="" className="avatar-img" />
+          ) : (
+            <div className="avatar">{user?.firstName?.charAt(0) || "?"}</div>
+          )}
           <div className="greeting">
             <span className="greeting-text">
               Привет, {user?.firstName || "Друг"}!
@@ -497,8 +871,12 @@ function App() {
             <span className="date-text">Сегодня {formatDate()}</span>
           </div>
         </div>
-        <button className="search-btn" onClick={() => setShowCreateGroup(true)}>
-          ➕
+        <button
+          className="header-action-btn"
+          onClick={() => setShowCreateGroup(true)}
+          title="Создать группу"
+        >
+          {Icons.plus}
         </button>
       </header>
 
@@ -509,121 +887,198 @@ function App() {
         </div>
       )}
 
-      {/* Hero Card - общий баланс */}
-      <div className="hero-card">
-        <div className="hero-content">
-          <div className="hero-title">
-            {getTotalBalance() >= 0 ? "Вам должны" : "Вы должны"}
-          </div>
-          <div
-            className="hero-subtitle"
-            style={{ fontSize: "32px", fontWeight: 700 }}
-          >
-            {Math.abs(getTotalBalance()).toFixed(0)}{" "}
-            {getCurrencySymbol(groups[0]?.currency || "RUB")}
-          </div>
-          {groups.length > 0 && (
-            <div className="hero-avatars">
-              {groups.slice(0, 3).map((_, i) => (
-                <div key={i} className="hero-avatar">
-                  {getGroupIcon(i)}
-                </div>
-              ))}
-              {groups.length > 3 && (
-                <div className="hero-avatar more">+{groups.length - 3}</div>
-              )}
-            </div>
-          )}
+      {/* Dev User Switcher */}
+      {isDevMode() && (
+        <div className="dev-switcher">
+          <span className="dev-label">DEV:</span>
+          {DEV_USERS.map((devUser) => (
+            <button
+              key={devUser.id}
+              className={`dev-user-btn ${initData === devUser.id ? "active" : ""}`}
+              onClick={() => switchDevUser(devUser.id)}
+            >
+              {devUser.emoji} {devUser.name}
+            </button>
+          ))}
         </div>
-        <div className="hero-decoration">💰</div>
-      </div>
+      )}
 
-      {/* Quick Actions */}
-      <div className="quick-actions">
-        <button className="quick-action" onClick={openQuickExpense}>
-          <div className="quick-action-icon yellow">➕</div>
-          <div className="quick-action-title">Расход</div>
-          <div className="quick-action-desc">Добавить трату</div>
-        </button>
-        <button
-          className="quick-action"
-          onClick={() => setShowSettle(true)}
-          disabled={!selectedGroup}
-        >
-          <div className="quick-action-icon green">💸</div>
-          <div className="quick-action-title">Перевод</div>
-          <div className="quick-action-desc">Погасить долг</div>
-        </button>
-        <button
-          className="quick-action"
-          onClick={() => setShowCreateGroup(true)}
-        >
-          <div className="quick-action-icon blue">👥</div>
-          <div className="quick-action-title">Группа</div>
-          <div className="quick-action-desc">Создать новую</div>
-        </button>
-        <button
-          className="quick-action"
-          onClick={handleShareInviteLink}
-          disabled={!groupBalance}
-        >
-          <div className="quick-action-icon pink">📤</div>
-          <div className="quick-action-title">Пригласить</div>
-          <div className="quick-action-desc">В группу</div>
-        </button>
+      {/* Hero Card - общий баланс */}
+      <div className="hero-card compact">
+        <div className="hero-row">
+          <div className="hero-stat">
+            <span className="hero-stat-label">Вам должны</span>
+            <span className="hero-stat-value positive">
+              {getTotalOwedToMeAll().toFixed(0)}{" "}
+              {getCurrencySymbol(groups[0]?.currency || "RUB")}
+            </span>
+          </div>
+          <div className="hero-stat">
+            <span className="hero-stat-label">Вы должны</span>
+            <span className="hero-stat-value negative">
+              {getTotalIOweAll().toFixed(0)}{" "}
+              {getCurrencySymbol(groups[0]?.currency || "RUB")}
+            </span>
+          </div>
+        </div>
+        {groups.length > 0 && (
+          <div className="hero-groups">
+            {groups.slice(0, 4).map((_, i) => (
+              <div key={i} className="hero-group-icon">
+                {getGroupIcon(i)}
+              </div>
+            ))}
+            {groups.length > 4 && (
+              <div className="hero-group-icon more">+{groups.length - 4}</div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Groups Section */}
       {groups.length > 0 && (
         <section className="groups-section">
-          <div className="section-title">Мои группы</div>
-          <div className="group-list">
-            {groups.map((g, index) => (
-              <button
-                key={g.id}
-                className={`group-item ${selectedGroup === g.id ? "active" : ""}`}
-                onClick={() => handleSelectGroup(g.id)}
+          <div className="groups-header">
+            <span className="section-title">Текущая группа</span>
+            <button
+              className="add-group-btn"
+              onClick={() => setShowCreateGroup(true)}
+            >
+              {Icons.plus}
+            </button>
+          </div>
+
+          {/* Текущая (выбранная) группа */}
+          {currentGroup && (
+            <button
+              className="group-item active"
+              onClick={() => handleSelectGroup(currentGroup.id)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                if (currentGroup.createdById === user?.id) {
+                  openEditGroup();
+                }
+              }}
+            >
+              <div
+                className={`group-item-icon ${getGroupColor(groups.findIndex((g) => g.id === currentGroup.id))}`}
               >
-                <div className={`group-item-icon ${getGroupColor(index)}`}>
-                  {getGroupIcon(index)}
+                {getGroupIcon(
+                  groups.findIndex((g) => g.id === currentGroup.id)
+                )}
+              </div>
+              <div className="group-item-content">
+                <div className="group-item-name">{currentGroup.name}</div>
+                <div className="group-item-meta">
+                  {getCurrencySymbol(currentGroup.currency)}
                 </div>
-                <div className="group-item-content">
-                  <div className="group-item-name">{g.name}</div>
-                  <div className="group-item-meta">
-                    {getCurrencySymbol(g.currency)}
-                  </div>
-                </div>
-                {g.userBalance !== undefined && g.userBalance !== 0 && (
+              </div>
+              {currentGroup.userBalance !== undefined &&
+                currentGroup.userBalance !== 0 && (
                   <div
-                    className={`group-item-balance ${g.userBalance >= 0 ? "positive" : "negative"}`}
+                    className={`group-item-balance ${currentGroup.userBalance >= 0 ? "positive" : "negative"}`}
                   >
-                    {g.userBalance >= 0 ? "+" : ""}
-                    {g.userBalance.toFixed(0)}
+                    {currentGroup.userBalance >= 0 ? "+" : ""}
+                    {currentGroup.userBalance.toFixed(0)}
                   </div>
                 )}
+            </button>
+          )}
+
+          {/* Архивные группы */}
+          {groups.length > 1 && (
+            <>
+              <button
+                className="archived-toggle"
+                onClick={() => setShowArchivedGroups(!showArchivedGroups)}
+              >
+                {Icons.archive}
+                <span>Другие группы ({groups.length - 1})</span>
+                {showArchivedGroups ? Icons.chevronUp : Icons.chevronDown}
               </button>
-            ))}
-          </div>
+
+              {showArchivedGroups && (
+                <div className="group-list archived">
+                  {groups
+                    .filter((g) => g.id !== selectedGroup)
+                    .map((g, index) => (
+                      <button
+                        key={g.id}
+                        className="group-item"
+                        onClick={() => {
+                          handleSelectGroup(g.id);
+                          setShowArchivedGroups(false);
+                        }}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          if (g.createdById === user?.id) {
+                            handleSelectGroup(g.id).then(() => openEditGroup());
+                          }
+                        }}
+                      >
+                        <div
+                          className={`group-item-icon ${getGroupColor(groups.indexOf(g))}`}
+                        >
+                          {getGroupIcon(groups.indexOf(g))}
+                        </div>
+                        <div className="group-item-content">
+                          <div className="group-item-name">{g.name}</div>
+                          <div className="group-item-meta">
+                            {getCurrencySymbol(g.currency)}
+                          </div>
+                        </div>
+                        {g.userBalance !== undefined && g.userBalance !== 0 && (
+                          <div
+                            className={`group-item-balance ${g.userBalance >= 0 ? "positive" : "negative"}`}
+                          >
+                            {g.userBalance >= 0 ? "+" : ""}
+                            {g.userBalance.toFixed(0)}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                </div>
+              )}
+            </>
+          )}
         </section>
       )}
 
       {/* Selected Group Details */}
       {selectedGroup && groupBalance && (
         <>
-          {/* Tabs */}
-          <div className="tabs">
-            <button
-              className={`tab ${activeTab === "balance" ? "active" : ""}`}
-              onClick={() => setActiveTab("balance")}
-            >
-              ⚖️ Баланс
-            </button>
-            <button
-              className={`tab ${activeTab === "expenses" ? "active" : ""}`}
-              onClick={() => setActiveTab("expenses")}
-            >
-              🧾 Траты ({groupExpenses.length})
-            </button>
+          {/* Tabs + Actions */}
+          <div className="tabs-row">
+            <div className="tabs">
+              <button
+                className={`tab ${activeTab === "balance" ? "active" : ""}`}
+                onClick={() => setActiveTab("balance")}
+              >
+                {Icons.balance} Баланс
+              </button>
+              <button
+                className={`tab ${activeTab === "expenses" ? "active" : ""}`}
+                onClick={() => setActiveTab("expenses")}
+              >
+                {Icons.receipt} Траты ({groupExpenses.length})
+              </button>
+            </div>
+            <div className="tabs-actions">
+              <button
+                className="tab-action-btn primary"
+                onClick={openQuickExpense}
+                title="Добавить расход"
+              >
+                {Icons.plus}
+              </button>
+              <button
+                className="tab-action-btn secondary"
+                onClick={() => setShowSettle(true)}
+                title="Погасить долг"
+              >
+                {Icons.money}
+              </button>
+            </div>
           </div>
 
           {/* Balance Tab */}
@@ -635,19 +1090,83 @@ function App() {
                 </span>
                 <div className="invite-actions">
                   {currentGroup?.createdById === user?.id && (
-                    <button className="icon-btn" onClick={openEditGroup}>
-                      ✏️
+                    <button
+                      className="icon-btn"
+                      onClick={openEditGroup}
+                      title="Редактировать"
+                    >
+                      {Icons.edit}
                     </button>
                   )}
-                  <button className="icon-btn" onClick={handleCopyInviteLink}>
-                    📋
+                  <button
+                    className="icon-btn"
+                    onClick={handleCopyInviteLink}
+                    title="Копировать ссылку"
+                  >
+                    {Icons.copy}
                   </button>
-                  <button className="icon-btn" onClick={handleShareInviteLink}>
-                    📤
+                  <button
+                    className="icon-btn"
+                    onClick={handleShareInviteLink}
+                    title="Поделиться"
+                  >
+                    {Icons.share}
                   </button>
                 </div>
               </div>
 
+              {/* Итоги: вам должны / вы должны */}
+              <div className="balance-totals">
+                {getTotalOwedToMe() > 0 && (
+                  <div className="balance-total-row">
+                    <span className="balance-total-label">Вам должны</span>
+                    <span className="balance-total-amount positive">
+                      {getTotalOwedToMe().toFixed(0)}{" "}
+                      {getCurrencySymbol(groupBalance.group.currency)}
+                    </span>
+                  </div>
+                )}
+                {getTotalIOwe() > 0 && (
+                  <div className="balance-total-row">
+                    <span className="balance-total-label">Вы должны</span>
+                    <span className="balance-total-amount negative">
+                      {getTotalIOwe().toFixed(0)}{" "}
+                      {getCurrencySymbol(groupBalance.group.currency)}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Детализация: кто кому должен */}
+              {(getDebtsBreakdown().owedToMe.length > 0 ||
+                getDebtsBreakdown().iOwe.length > 0) && (
+                <div className="debts-breakdown">
+                  {getDebtsBreakdown().owedToMe.map((debt, i) => (
+                    <div key={`owed-${i}`} className="debt-row">
+                      <span className="debt-text positive">
+                        {debt.name} должен вам
+                      </span>
+                      <span className="debt-amount positive">
+                        {debt.amount.toFixed(0)}{" "}
+                        {getCurrencySymbol(groupBalance.group.currency)}
+                      </span>
+                    </div>
+                  ))}
+                  {getDebtsBreakdown().iOwe.map((debt, i) => (
+                    <div key={`iowe-${i}`} className="debt-row">
+                      <span className="debt-text negative">
+                        Вы должны {debt.name}
+                      </span>
+                      <span className="debt-amount negative">
+                        {debt.amount.toFixed(0)}{" "}
+                        {getCurrencySymbol(groupBalance.group.currency)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Все балансы участников */}
               <div className="balance-list">
                 {Object.entries(groupBalance.balances).map(([uid, balance]) => (
                   <div className="balance-row" key={uid}>
@@ -695,61 +1214,68 @@ function App() {
               ) : (
                 <div className="expenses-list">
                   {groupExpenses.map((expense) => (
-                    <div className="expense-item" key={expense.id}>
-                      <div className="expense-icon">🧾</div>
+                    <SwipeableExpense
+                      key={expense.id}
+                      expense={expense}
+                      isOwner={expense.createdBy.id === user?.id}
+                      onEdit={() => handleEditExpense(expense)}
+                      onDelete={() => handleDeleteExpense(expense.id)}
+                    >
+                      <div className="expense-icon">{Icons.receipt}</div>
                       <div className="expense-details">
                         <div className="expense-title">
                           {expense.description}
                         </div>
                         <div className="expense-meta">
-                          {getUserName(expense.createdBy)} •{" "}
-                          {formatExpenseDate(expense.createdAt)}
-                        </div>
-                      </div>
-                      <div className="expense-right">
-                        <div className="expense-amount">
+                          {getMyExpenseShare(expense).payer}{" "}
                           {Number(expense.amount).toFixed(0)}{" "}
                           {getCurrencySymbol(expense.currency)}
                         </div>
-                        {expense.createdBy.id === user?.id && (
-                          <div className="expense-actions">
-                            <button
-                              className="expense-action-btn"
-                              onClick={() => handleEditExpense(expense)}
-                            >
-                              ✏️
-                            </button>
-                            <button
-                              className="expense-action-btn danger"
-                              onClick={() => {
-                                setDeletingExpenseId(expense.id);
-                                setShowDeleteConfirm("expense");
-                              }}
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        )}
                       </div>
-                    </div>
+                      <div className="expense-right">
+                        {(() => {
+                          const share = getMyExpenseShare(expense);
+                          if (share.type === "lent" && share.amount > 0) {
+                            return (
+                              <>
+                                <div className="expense-share-label">
+                                  вам должны
+                                </div>
+                                <div className="expense-share-amount positive">
+                                  {share.amount.toFixed(0)}{" "}
+                                  {getCurrencySymbol(expense.currency)}
+                                </div>
+                              </>
+                            );
+                          } else if (
+                            share.type === "borrowed" &&
+                            share.amount > 0
+                          ) {
+                            return (
+                              <>
+                                <div className="expense-share-label">
+                                  вы должны
+                                </div>
+                                <div className="expense-share-amount negative">
+                                  {share.amount.toFixed(0)}{" "}
+                                  {getCurrencySymbol(expense.currency)}
+                                </div>
+                              </>
+                            );
+                          }
+                          return (
+                            <div className="expense-share-amount muted">
+                              не участвуете
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </SwipeableExpense>
                   ))}
                 </div>
               )}
             </section>
           )}
-
-          {/* Action Row */}
-          <div className="action-row">
-            <button className="action-btn primary" onClick={openQuickExpense}>
-              ➕ Добавить расход
-            </button>
-            <button
-              className="action-btn secondary"
-              onClick={() => setShowSettle(true)}
-            >
-              💸 Погасить
-            </button>
-          </div>
         </>
       )}
 
@@ -769,41 +1295,6 @@ function App() {
           </button>
         </div>
       )}
-
-      {/* FAB */}
-      {groups.length > 0 && (
-        <button className="fab" onClick={openQuickExpense}>
-          +
-        </button>
-      )}
-
-      {/* Bottom Navigation */}
-      <nav className="bottom-nav">
-        <button
-          className={`nav-item ${currentScreen === "home" ? "active" : ""}`}
-          onClick={() => setCurrentScreen("home")}
-        >
-          🏠
-        </button>
-        <button
-          className={`nav-item ${currentScreen === "groups" ? "active" : ""}`}
-          onClick={() => setCurrentScreen("groups")}
-        >
-          📊
-        </button>
-        <button
-          className={`nav-item ${currentScreen === "activity" ? "active" : ""}`}
-          onClick={() => setCurrentScreen("activity")}
-        >
-          🔔
-        </button>
-        <button
-          className={`nav-item ${currentScreen === "profile" ? "active" : ""}`}
-          onClick={() => setCurrentScreen("profile")}
-        >
-          👤
-        </button>
-      </nav>
 
       {/* Create Group Modal */}
       {showCreateGroup && (

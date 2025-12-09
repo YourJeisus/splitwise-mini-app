@@ -189,6 +189,21 @@ export class GroupsService {
       balances[id] = balance;
     });
 
+    // Формируем список долгов для отображения
+    const debtsList: {
+      fromUserId: string;
+      toUserId: string;
+      amount: number;
+    }[] = [];
+    for (const debtor of memberIds) {
+      for (const creditor of memberIds) {
+        const amount = netDebts[debtor][creditor] || 0;
+        if (amount > 0.01) {
+          debtsList.push({ fromUserId: debtor, toUserId: creditor, amount });
+        }
+      }
+    }
+
     return {
       group: {
         id: group.id,
@@ -198,6 +213,7 @@ export class GroupsService {
       },
       balances,
       userNames,
+      debts: debtsList,
       expensesCount: group.expenses.length,
     };
   }
