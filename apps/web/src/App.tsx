@@ -413,10 +413,15 @@ function App() {
       webApp.ready?.();
       webApp.expand?.();
 
-      // Fullscreen mode
+      // Fullscreen mode только для мобильных устройств
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const wa = webApp as any;
-      if (wa.requestFullscreen) {
+      const platform = wa.platform || "";
+      const isMobile =
+        platform === "android" ||
+        platform === "android_x" ||
+        platform === "ios";
+      if (isMobile && wa.requestFullscreen) {
         wa.requestFullscreen();
       }
 
@@ -555,7 +560,7 @@ function App() {
 
   const handleCopyInviteLink = () => {
     if (!groupBalance?.group.inviteCode) return;
-    const botUsername = "JeisusSplitBot";
+    const botUsername = "PopolamAppBot";
     const link = `https://t.me/${botUsername}?startapp=${groupBalance.group.inviteCode}`;
     navigator.clipboard.writeText(link);
     window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
@@ -563,7 +568,7 @@ function App() {
 
   const handleShareInviteLink = () => {
     if (!groupBalance?.group.inviteCode) return;
-    const botUsername = "JeisusSplitBot";
+    const botUsername = "PopolamAppBot";
     const link = `https://t.me/${botUsername}?startapp=${groupBalance.group.inviteCode}`;
     const text = `Присоединяйся к группе "${groupBalance.group.name}" в JeisusSplit!`;
     window.Telegram?.WebApp?.openTelegramLink?.(
