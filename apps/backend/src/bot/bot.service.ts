@@ -9,29 +9,37 @@ import { Telegraf, Markup } from "telegraf";
 
 @Injectable()
 export class BotService implements OnModuleInit, OnModuleDestroy {
-  private bot: Telegraf;
+  private bot: Telegraf | null = null;
   private readonly logger = new Logger(BotService.name);
   private readonly webAppUrl: string;
 
   constructor(private configService: ConfigService) {
     const token = this.configService.get<string>("BOT_TOKEN");
-    if (!token) {
-      throw new Error("BOT_TOKEN is not defined");
+    if (token) {
+      this.bot = new Telegraf(token);
+    } else {
+      this.logger.warn("BOT_TOKEN is not defined, bot disabled");
     }
-    this.bot = new Telegraf(token);
     this.webAppUrl =
       this.configService.get<string>("WEBAPP_URL") ||
-      "https://splitwise.up.railway.app";
+      "https://popolam.up.railway.app";
   }
 
   async onModuleInit() {
-    this.setupHandlers();
-    await this.bot.launch();
-    this.logger.log("Bot started");
+    if (!this.bot) return;
+    try {
+      this.setupHandlers();
+      await this.bot.launch();
+      this.logger.log("Bot started");
+    } catch (error) {
+      this.logger.error("Failed to start bot", (error as Error).message);
+    }
   }
 
   async onModuleDestroy() {
-    this.bot.stop("SIGTERM");
+    if (this.bot) {
+      this.bot.stop("SIGTERM");
+    }
   }
 
   private setupHandlers() {
