@@ -50,6 +50,7 @@ model Group {
   id          String        @id @default(uuid())
   name        String
   currency    String        @default("USD")
+  inviteCode  String        @unique @default(uuid())
   createdById String
   createdAt   DateTime      @default(now())
 

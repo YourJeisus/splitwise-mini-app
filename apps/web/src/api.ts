@@ -22,12 +22,14 @@ export type Group = {
   id: string;
   name: string;
   currency: string;
+  inviteCode?: string;
   role: string;
 };
 
 export type GroupBalance = {
-  group: { id: string; name: string; currency: string };
+  group: { id: string; name: string; currency: string; inviteCode?: string };
   balances: Record<string, number>;
+  userNames: Record<string, string>;
   expensesCount: number;
 };
 
@@ -57,8 +59,10 @@ export const createApiClient = (initData: string) => {
     listFriends: () => request<Friend[]>('/users/friends'),
     addFriend: (telegramId: string) => request<Friend>('/users/friends', { method: 'POST', body: { telegramId } }),
     listGroups: () => request<Group[]>('/groups'),
-    createGroup: (payload: { name: string; currency?: string; memberIds?: string[] }) =>
+    createGroup: (payload: { name: string; currency?: string }) =>
       request<Group>('/groups', { method: 'POST', body: payload }),
+    joinGroup: (inviteCode: string) =>
+      request<Group>(`/groups/join/${inviteCode}`, { method: 'POST' }),
     getGroupBalance: (groupId: string) => request<GroupBalance>(`/groups/${groupId}/balance`),
     createExpense: (payload: { groupId: string; description: string; amount: number; currency: string; shares: { userId: string; paid: number; owed: number }[] }) =>
       request<{ id: string }>('/expenses', { method: 'POST', body: payload }),

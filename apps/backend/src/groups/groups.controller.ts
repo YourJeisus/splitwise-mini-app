@@ -19,6 +19,11 @@ export class GroupsController {
     return this.groupsService.create(user.id, dto);
   }
 
+  @Post('join/:inviteCode')
+  join(@AuthUser() user: any, @Param('inviteCode') inviteCode: string) {
+    return this.groupsService.joinByInvite(user.id, inviteCode);
+  }
+
   @Get(':id/balance')
   balance(@Param('id') id: string) {
     return this.groupsService.getBalance(id);
