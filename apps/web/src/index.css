@@ -1,19 +1,69 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
 :root {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Основные цвета из референса */
+  --bg-primary: #e8e0f4;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+
+  /* Акцентные цвета */
+  --accent-yellow: #ffb545;
+  --accent-blue: #a8d8ea;
+  --accent-pink: #f5a3c7;
+  --accent-purple: #b39ddb;
+  --accent-green: #81c784;
+  --accent-orange: #ffab91;
+
+  /* Текст */
+  --text-primary: #1a1a2e;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+
+  /* Навигация */
+  --nav-bg: #1a1a2e;
+  --nav-text: #ffffff;
+  --nav-active: #ffffff;
+
+  /* Статусы */
+  --positive: #22c55e;
+  --negative: #ef4444;
+
+  /* Тени */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* Радиусы */
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-full: 9999px;
+
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #0f172a;
-  background-color: #f4f6fb;
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
   margin: 0;
-  background: #f4f6fb;
+  background: var(--bg-primary);
+  overflow-x: hidden;
 }

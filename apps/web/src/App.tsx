@@ -1,28 +1,28 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
-import './App.css';
-import { createApiClient } from './api';
-import type { User, Group, GroupBalance, Expense } from './api';
+import { useEffect, useMemo, useState, useCallback } from "react";
+import "./App.css";
+import { createApiClient } from "./api";
+import type { User, Group, GroupBalance, Expense } from "./api";
 
-// Популярные валюты
 const CURRENCIES = [
-  { code: 'RUB', name: 'Российский рубль', symbol: '₽' },
-  { code: 'USD', name: 'Доллар США', symbol: '$' },
-  { code: 'EUR', name: 'Евро', symbol: '€' },
-  { code: 'GBP', name: 'Фунт стерлингов', symbol: '£' },
-  { code: 'UAH', name: 'Украинская гривна', symbol: '₴' },
-  { code: 'KZT', name: 'Казахстанский тенге', symbol: '₸' },
-  { code: 'BYN', name: 'Белорусский рубль', symbol: 'Br' },
-  { code: 'TRY', name: 'Турецкая лира', symbol: '₺' },
-  { code: 'CNY', name: 'Китайский юань', symbol: '¥' },
-  { code: 'JPY', name: 'Японская иена', symbol: '¥' },
-  { code: 'GEL', name: 'Грузинский лари', symbol: '₾' },
-  { code: 'AMD', name: 'Армянский драм', symbol: '֏' },
-  { code: 'AZN', name: 'Азербайджанский манат', symbol: '₼' },
-  { code: 'THB', name: 'Тайский бат', symbol: '฿' },
-  { code: 'AED', name: 'Дирхам ОАЭ', symbol: 'د.إ' },
+  { code: "RUB", name: "Российский рубль", symbol: "₽" },
+  { code: "USD", name: "Доллар США", symbol: "$" },
+  { code: "EUR", name: "Евро", symbol: "€" },
+  { code: "GBP", name: "Фунт стерлингов", symbol: "£" },
+  { code: "UAH", name: "Украинская гривна", symbol: "₴" },
+  { code: "KZT", name: "Казахстанский тенге", symbol: "₸" },
+  { code: "BYN", name: "Белорусский рубль", symbol: "Br" },
+  { code: "TRY", name: "Турецкая лира", symbol: "₺" },
+  { code: "CNY", name: "Китайский юань", symbol: "¥" },
+  { code: "JPY", name: "Японская иена", symbol: "¥" },
+  { code: "GEL", name: "Грузинский лари", symbol: "₾" },
+  { code: "AMD", name: "Армянский драм", symbol: "֏" },
+  { code: "AZN", name: "Азербайджанский манат", symbol: "₼" },
+  { code: "THB", name: "Тайский бат", symbol: "฿" },
+  { code: "AED", name: "Дирхам ОАЭ", symbol: "د.إ" },
 ];
 
-type Tab = 'balance' | 'expenses';
+type Tab = "balance" | "expenses";
+type Screen = "home" | "groups" | "activity" | "profile";
 
 type InviteInfo = {
   id: string;
@@ -32,95 +32,118 @@ type InviteInfo = {
   inviteCode: string;
 };
 
+const GROUP_COLORS = ["yellow", "blue", "pink", "green", "purple", "orange"];
+const GROUP_ICONS = ["👥", "🏠", "✈️", "🎉", "💼", "🍕", "🎮", "🛒"];
+
 function App() {
-  const [initData, setInitData] = useState('');
+  const [initData, setInitData] = useState("");
   const [user, setUser] = useState<User | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [status, setStatus] = useState('Ожидание Telegram...');
-  
+  const [currentScreen, setCurrentScreen] = useState<Screen>("home");
+
   // Создание группы
-  const [newGroupName, setNewGroupName] = useState('');
-  const [newGroupCurrency, setNewGroupCurrency] = useState('RUB');
-  const [currencySearch, setCurrencySearch] = useState('');
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupCurrency, setNewGroupCurrency] = useState("RUB");
+  const [currencySearch, setCurrencySearch] = useState("");
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
-  
+
   // Приглашение в группу
   const [pendingInvite, setPendingInvite] = useState<InviteInfo | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
-  
+
   // Выбранная группа
-  const [selectedGroup, setSelectedGroup] = useState('');
+  const [selectedGroup, setSelectedGroup] = useState("");
   const [groupBalance, setGroupBalance] = useState<GroupBalance | null>(null);
   const [groupExpenses, setGroupExpenses] = useState<Expense[]>([]);
-  const [activeTab, setActiveTab] = useState<Tab>('balance');
-  
+  const [activeTab, setActiveTab] = useState<Tab>("balance");
+
   // Расходы
-  const [expenseTitle, setExpenseTitle] = useState('');
+  const [expenseTitle, setExpenseTitle] = useState("");
   const [expenseAmount, setExpenseAmount] = useState<number>(0);
-  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>(
+    []
+  );
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  
+
   // Погашение
-  const [settleToUser, setSettleToUser] = useState('');
+  const [settleToUser, setSettleToUser] = useState("");
   const [settleAmount, setSettleAmount] = useState<number>(0);
   const [showSettle, setShowSettle] = useState(false);
 
   // Редактирование группы
   const [showEditGroup, setShowEditGroup] = useState(false);
-  const [editGroupName, setEditGroupName] = useState('');
-  const [editGroupCurrency, setEditGroupCurrency] = useState('');
-  const [showEditCurrencyDropdown, setShowEditCurrencyDropdown] = useState(false);
+  const [editGroupName, setEditGroupName] = useState("");
+  const [editGroupCurrency, setEditGroupCurrency] = useState("");
+  const [showEditCurrencyDropdown, setShowEditCurrencyDropdown] =
+    useState(false);
 
   // Подтверждение удаления
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<'group' | 'expense' | null>(null);
-  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<
+    "group" | "expense" | null
+  >(null);
+  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
+    null
+  );
 
   const api = useMemo(
-    () => createApiClient(initData || import.meta.env.VITE_TG_INIT_DATA || ''),
+    () => createApiClient(initData || import.meta.env.VITE_TG_INIT_DATA || ""),
     [initData]
   );
 
-  // Фильтрация валют
   const filteredCurrencies = useMemo(() => {
     if (!currencySearch) return CURRENCIES;
     const search = currencySearch.toLowerCase();
     return CURRENCIES.filter(
-      c => c.code.toLowerCase().includes(search) || c.name.toLowerCase().includes(search)
+      (c) =>
+        c.code.toLowerCase().includes(search) ||
+        c.name.toLowerCase().includes(search)
     );
   }, [currencySearch]);
 
-  // Текущая группа
   const currentGroup = useMemo(() => {
-    return groups.find(g => g.id === selectedGroup);
+    return groups.find((g) => g.id === selectedGroup);
   }, [groups, selectedGroup]);
 
-  // Проверка invite-кода и показ модалки
-  const checkInviteCode = useCallback(async (code: string) => {
-    if (!code) return;
-    
-    setInviteLoading(true);
-    setInviteError(null);
-    
-    try {
-      const groupInfo = await api.getGroupByInvite(code);
-      const userGroups = await api.listGroups();
-      const alreadyMember = userGroups.some(g => g.id === groupInfo.id);
-      
-      if (alreadyMember) {
-        setInviteError('Вы уже состоите в этой группе');
-        setGroups(userGroups);
-        await handleSelectGroup(groupInfo.id);
-      } else {
-        setPendingInvite({ ...groupInfo, inviteCode: code });
+  const getGroupColor = (index: number) =>
+    GROUP_COLORS[index % GROUP_COLORS.length];
+  const getGroupIcon = (index: number) =>
+    GROUP_ICONS[index % GROUP_ICONS.length];
+
+  const formatDate = () => {
+    const now = new Date();
+    return now.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+  };
+
+  const checkInviteCode = useCallback(
+    async (code: string) => {
+      if (!code) return;
+
+      setInviteLoading(true);
+      setInviteError(null);
+
+      try {
+        const groupInfo = await api.getGroupByInvite(code);
+        const userGroups = await api.listGroups();
+        const alreadyMember = userGroups.some((g) => g.id === groupInfo.id);
+
+        if (alreadyMember) {
+          setInviteError("Вы уже состоите в этой группе");
+          setGroups(userGroups);
+          await handleSelectGroup(groupInfo.id);
+        } else {
+          setPendingInvite({ ...groupInfo, inviteCode: code });
+        }
+      } catch (error) {
+        setInviteError((error as Error).message || "Группа не найдена");
+      } finally {
+        setInviteLoading(false);
       }
-    } catch (error) {
-      setInviteError((error as Error).message || 'Группа не найдена');
-    } finally {
-      setInviteLoading(false);
-    }
-  }, [api]);
+    },
+    [api]
+  );
 
   useEffect(() => {
     const webApp = window.Telegram?.WebApp;
@@ -128,14 +151,11 @@ function App() {
       webApp.ready?.();
       webApp.expand?.();
       setInitData(webApp.initData);
-      setStatus('Telegram готов');
-      
+
       const startParam = webApp.initDataUnsafe?.start_param;
       if (startParam) {
-        sessionStorage.setItem('pendingInviteCode', startParam);
+        sessionStorage.setItem("pendingInviteCode", startParam);
       }
-    } else {
-      setStatus('Нет Telegram WebApp');
     }
   }, []);
 
@@ -146,23 +166,20 @@ function App() {
 
   const bootstrap = async () => {
     try {
-      setStatus('Авторизация...');
       const me = await api.verify();
       setUser(me);
       const groupList = await api.listGroups();
       setGroups(groupList);
-      
-      const pendingCode = sessionStorage.getItem('pendingInviteCode');
+
+      const pendingCode = sessionStorage.getItem("pendingInviteCode");
       if (pendingCode) {
-        sessionStorage.removeItem('pendingInviteCode');
+        sessionStorage.removeItem("pendingInviteCode");
         await checkInviteCode(pendingCode);
       } else if (groupList[0]) {
         await handleSelectGroup(groupList[0].id);
       }
-      
-      setStatus('Готово');
     } catch (error) {
-      setStatus(`Ошибка: ${(error as Error).message}`);
+      console.error("Bootstrap error:", error);
     }
   };
 
@@ -170,12 +187,14 @@ function App() {
     if (!newGroupName) return;
     try {
       await api.createGroup({ name: newGroupName, currency: newGroupCurrency });
-      setNewGroupName('');
+      setNewGroupName("");
+      setShowCreateGroup(false);
       const updated = await api.listGroups();
       setGroups(updated);
       if (updated[0]) {
         await handleSelectGroup(updated[0].id);
       }
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
     } catch (error) {
       alert(`Ошибка: ${(error as Error).message}`);
     }
@@ -183,7 +202,7 @@ function App() {
 
   const handleAcceptInvite = async () => {
     if (!pendingInvite) return;
-    
+
     setInviteLoading(true);
     try {
       const group = await api.joinGroup(pendingInvite.inviteCode);
@@ -191,14 +210,13 @@ function App() {
       const updated = await api.listGroups();
       setGroups(updated);
       await handleSelectGroup(group.id);
-      
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
-      window.Telegram?.WebApp?.showAlert?.(`Вы присоединились к группе "${group.name}"!`);
+
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
     } catch (error) {
       const message = (error as Error).message;
-      if (message.includes('уже в этой группе')) {
+      if (message.includes("уже в этой группе")) {
         setPendingInvite(null);
-        setInviteError('Вы уже состоите в этой группе');
+        setInviteError("Вы уже состоите в этой группе");
       } else {
         alert(`Ошибка: ${message}`);
       }
@@ -209,7 +227,7 @@ function App() {
 
   const handleDeclineInvite = () => {
     setPendingInvite(null);
-    window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light');
+    window.Telegram?.WebApp?.HapticFeedback?.impactOccurred("light");
   };
 
   const handleSelectGroup = async (groupId: string) => {
@@ -219,7 +237,7 @@ function App() {
     setShowEditGroup(false);
     const [balance, expenses] = await Promise.all([
       api.getGroupBalance(groupId),
-      api.getGroupExpenses(groupId)
+      api.getGroupExpenses(groupId),
     ]);
     setGroupBalance(balance);
     setGroupExpenses(expenses);
@@ -228,16 +246,15 @@ function App() {
 
   const handleCopyInviteLink = () => {
     if (!groupBalance?.group.inviteCode) return;
-    const botUsername = 'JeisusSplitBot';
+    const botUsername = "JeisusSplitBot";
     const link = `https://t.me/${botUsername}?startapp=${groupBalance.group.inviteCode}`;
     navigator.clipboard.writeText(link);
-    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
-    window.Telegram?.WebApp?.showAlert?.('Ссылка скопирована!') || alert('Ссылка скопирована!');
+    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
   };
 
   const handleShareInviteLink = () => {
     if (!groupBalance?.group.inviteCode) return;
-    const botUsername = 'JeisusSplitBot';
+    const botUsername = "JeisusSplitBot";
     const link = `https://t.me/${botUsername}?startapp=${groupBalance.group.inviteCode}`;
     const text = `Присоединяйся к группе "${groupBalance.group.name}" в Splitwise!`;
     window.Telegram?.WebApp?.openTelegramLink?.(
@@ -246,54 +263,62 @@ function App() {
   };
 
   const toggleParticipant = (userId: string) => {
-    setSelectedParticipants(prev => 
-      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    setSelectedParticipants((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId]
     );
   };
 
   const handleAddExpense = async () => {
-    if (!selectedGroup || !user || !expenseAmount || selectedParticipants.length === 0) return;
-    
+    if (
+      !selectedGroup ||
+      !user ||
+      !expenseAmount ||
+      selectedParticipants.length === 0
+    )
+      return;
+
     const owed = expenseAmount / selectedParticipants.length;
     const shares = selectedParticipants.map((id) => ({
       userId: id,
       paid: id === user.id ? expenseAmount : 0,
-      owed
+      owed,
     }));
-    
+
     try {
       if (editingExpense) {
         await api.updateExpense(editingExpense.id, {
-          description: expenseTitle || 'Расход',
+          description: expenseTitle || "Расход",
           amount: expenseAmount,
-          shares
+          shares,
         });
       } else {
         await api.createExpense({
           groupId: selectedGroup,
-          description: expenseTitle || 'Расход',
+          description: expenseTitle || "Расход",
           amount: expenseAmount,
-          currency: groupBalance?.group.currency ?? 'RUB',
-          shares
+          currency: groupBalance?.group.currency ?? "RUB",
+          shares,
         });
       }
-      
-      setExpenseTitle('');
+
+      setExpenseTitle("");
       setExpenseAmount(0);
       setShowAddExpense(false);
       setEditingExpense(null);
-      
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
-      
+
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
+
       const [balance, expenses, updatedGroups] = await Promise.all([
         api.getGroupBalance(selectedGroup),
         api.getGroupExpenses(selectedGroup),
-        api.listGroups()
+        api.listGroups(),
       ]);
       setGroupBalance(balance);
       setGroupExpenses(expenses);
       setGroups(updatedGroups);
-      setActiveTab('expenses');
+      setActiveTab("expenses");
     } catch (error) {
       alert(`Ошибка: ${(error as Error).message}`);
     }
@@ -303,24 +328,24 @@ function App() {
     setEditingExpense(expense);
     setExpenseTitle(expense.description);
     setExpenseAmount(Number(expense.amount));
-    setSelectedParticipants(expense.shares.map(s => s.userId));
+    setSelectedParticipants(expense.shares.map((s) => s.userId));
     setShowAddExpense(true);
   };
 
   const handleDeleteExpense = async () => {
     if (!deletingExpenseId || !selectedGroup) return;
-    
+
     try {
       await api.deleteExpense(deletingExpenseId);
       setShowDeleteConfirm(null);
       setDeletingExpenseId(null);
-      
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
-      
+
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
+
       const [balance, expenses, updatedGroups] = await Promise.all([
         api.getGroupBalance(selectedGroup),
         api.getGroupExpenses(selectedGroup),
-        api.listGroups()
+        api.listGroups(),
       ]);
       setGroupBalance(balance);
       setGroupExpenses(expenses);
@@ -336,18 +361,18 @@ function App() {
       await api.createSettlement({
         toUserId: settleToUser,
         amount: settleAmount,
-        currency: groupBalance?.group.currency
+        currency: groupBalance?.group.currency,
       });
       setSettleAmount(0);
-      setSettleToUser('');
+      setSettleToUser("");
       setShowSettle(false);
-      
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
-      
+
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
+
       if (selectedGroup) {
         const [balance, updatedGroups] = await Promise.all([
           api.getGroupBalance(selectedGroup),
-          api.listGroups()
+          api.listGroups(),
         ]);
         setGroupBalance(balance);
         setGroups(updatedGroups);
@@ -366,19 +391,19 @@ function App() {
 
   const handleUpdateGroup = async () => {
     if (!selectedGroup || !editGroupName) return;
-    
+
     try {
       await api.updateGroup(selectedGroup, {
         name: editGroupName,
-        currency: editGroupCurrency
+        currency: editGroupCurrency,
       });
       setShowEditGroup(false);
-      
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
-      
+
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
+
       const [balance, updatedGroups] = await Promise.all([
         api.getGroupBalance(selectedGroup),
-        api.listGroups()
+        api.listGroups(),
       ]);
       setGroupBalance(balance);
       setGroups(updatedGroups);
@@ -389,16 +414,16 @@ function App() {
 
   const handleDeleteGroup = async () => {
     if (!selectedGroup) return;
-    
+
     try {
       await api.deleteGroup(selectedGroup);
       setShowDeleteConfirm(null);
-      setSelectedGroup('');
+      setSelectedGroup("");
       setGroupBalance(null);
       setGroupExpenses([]);
-      
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
-      
+
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
+
       const updatedGroups = await api.listGroups();
       setGroups(updatedGroups);
       if (updatedGroups[0]) {
@@ -410,50 +435,71 @@ function App() {
   };
 
   const getCurrencySymbol = (code: string) => {
-    return CURRENCIES.find(c => c.code === code)?.symbol || code;
+    return CURRENCIES.find((c) => c.code === code)?.symbol || code;
   };
 
-  const formatDate = (dateStr: string) => {
+  const formatExpenseDate = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    
-    if (days === 0) return 'Сегодня';
-    if (days === 1) return 'Вчера';
+
+    if (days === 0) return "Сегодня";
+    if (days === 1) return "Вчера";
     if (days < 7) return `${days} дн. назад`;
-    
-    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+
+    return date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
   };
 
-  const getUserName = (userObj: { firstName?: string; username?: string } | undefined) => {
-    if (!userObj) return 'Участник';
-    return userObj.firstName || userObj.username || 'Участник';
+  const getUserName = (
+    userObj: { firstName?: string; username?: string } | undefined
+  ) => {
+    if (!userObj) return "Участник";
+    return userObj.firstName || userObj.username || "Участник";
   };
 
-  const formatBalance = (balance: number, currency: string) => {
-    const symbol = getCurrencySymbol(currency);
-    const absBalance = Math.abs(balance).toFixed(0);
-    if (balance > 0) {
-      return <span className="balance-preview positive">+{absBalance} {symbol}</span>;
-    } else if (balance < 0) {
-      return <span className="balance-preview negative">-{absBalance} {symbol}</span>;
+  const getUserInitials = (name: string) => {
+    return name.charAt(0).toUpperCase();
+  };
+
+  const getTotalBalance = () => {
+    return groups.reduce((sum, g) => sum + (g.userBalance || 0), 0);
+  };
+
+  // Быстрое открытие модалки добавления расхода
+  const openQuickExpense = () => {
+    if (!selectedGroup && groups[0]) {
+      handleSelectGroup(groups[0].id).then(() => {
+        setEditingExpense(null);
+        setExpenseTitle("");
+        setExpenseAmount(0);
+        setShowAddExpense(true);
+      });
+    } else if (groupBalance) {
+      setEditingExpense(null);
+      setExpenseTitle("");
+      setExpenseAmount(0);
+      setSelectedParticipants(Object.keys(groupBalance.balances));
+      setShowAddExpense(true);
     }
-    return null;
   };
 
   return (
     <div className="app">
+      {/* Header */}
       <header className="header">
-      <div>
-          <p className="status-text">Статус: {status}</p>
-          {user && (
-            <h2 className="user-name">
-              {user.firstName || 'Пользователь'} {user.lastName || ''}
-            </h2>
-          )}
+        <div className="header-left">
+          <div className="avatar">{user?.firstName?.charAt(0) || "👤"}</div>
+          <div className="greeting">
+            <span className="greeting-text">
+              Привет, {user?.firstName || "Друг"}!
+            </span>
+            <span className="date-text">Сегодня {formatDate()}</span>
+          </div>
         </div>
-        <div className="logo">💰 Splitwise</div>
+        <button className="search-btn" onClick={() => setShowCreateGroup(true)}>
+          ➕
+        </button>
       </header>
 
       {inviteError && (
@@ -463,200 +509,378 @@ function App() {
         </div>
       )}
 
-      {/* Создание группы */}
-      <section className="card">
-        <h3>➕ Создать группу</h3>
-        <input
-          value={newGroupName}
-          onChange={(e) => setNewGroupName(e.target.value)}
-          placeholder="Название группы"
-          className="full-width"
-        />
-        
-        <div className="currency-select">
-          <div 
-            className="currency-input"
-            onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
-          >
-            <span>{getCurrencySymbol(newGroupCurrency)} {newGroupCurrency}</span>
-            <span className="arrow">▼</span>
+      {/* Hero Card - общий баланс */}
+      <div className="hero-card">
+        <div className="hero-content">
+          <div className="hero-title">
+            {getTotalBalance() >= 0 ? "Вам должны" : "Вы должны"}
           </div>
-          
-          {showCurrencyDropdown && (
-            <div className="currency-dropdown">
-              <input
-                value={currencySearch}
-                onChange={(e) => setCurrencySearch(e.target.value)}
-                placeholder="Поиск валюты..."
-                className="currency-search"
-                autoFocus
-              />
-              <div className="currency-list">
-                {filteredCurrencies.map(c => (
-                  <div
-                    key={c.code}
-                    className={`currency-option ${newGroupCurrency === c.code ? 'selected' : ''}`}
-                    onClick={() => {
-                      setNewGroupCurrency(c.code);
-                      setShowCurrencyDropdown(false);
-                      setCurrencySearch('');
-                    }}
-                  >
-                    <span className="currency-symbol">{c.symbol}</span>
-                    <span className="currency-code">{c.code}</span>
-                    <span className="currency-name">{c.name}</span>
-                  </div>
-                ))}
-              </div>
+          <div
+            className="hero-subtitle"
+            style={{ fontSize: "32px", fontWeight: 700 }}
+          >
+            {Math.abs(getTotalBalance()).toFixed(0)}{" "}
+            {getCurrencySymbol(groups[0]?.currency || "RUB")}
+          </div>
+          {groups.length > 0 && (
+            <div className="hero-avatars">
+              {groups.slice(0, 3).map((_, i) => (
+                <div key={i} className="hero-avatar">
+                  {getGroupIcon(i)}
+                </div>
+              ))}
+              {groups.length > 3 && (
+                <div className="hero-avatar more">+{groups.length - 3}</div>
+              )}
             </div>
           )}
+        </div>
+        <div className="hero-decoration">💰</div>
       </div>
-        
-        <button onClick={handleCreateGroup} disabled={!newGroupName} className="primary-btn">
-          Создать группу
-        </button>
-      </section>
 
-      {/* Список групп */}
+      {/* Quick Actions */}
+      <div className="quick-actions">
+        <button className="quick-action" onClick={openQuickExpense}>
+          <div className="quick-action-icon yellow">➕</div>
+          <div className="quick-action-title">Расход</div>
+          <div className="quick-action-desc">Добавить трату</div>
+        </button>
+        <button
+          className="quick-action"
+          onClick={() => setShowSettle(true)}
+          disabled={!selectedGroup}
+        >
+          <div className="quick-action-icon green">💸</div>
+          <div className="quick-action-title">Перевод</div>
+          <div className="quick-action-desc">Погасить долг</div>
+        </button>
+        <button
+          className="quick-action"
+          onClick={() => setShowCreateGroup(true)}
+        >
+          <div className="quick-action-icon blue">👥</div>
+          <div className="quick-action-title">Группа</div>
+          <div className="quick-action-desc">Создать новую</div>
+        </button>
+        <button
+          className="quick-action"
+          onClick={handleShareInviteLink}
+          disabled={!groupBalance}
+        >
+          <div className="quick-action-icon pink">📤</div>
+          <div className="quick-action-title">Пригласить</div>
+          <div className="quick-action-desc">В группу</div>
+        </button>
+      </div>
+
+      {/* Groups Section */}
       {groups.length > 0 && (
-        <section className="card">
-          <h3>📋 Мои группы</h3>
+        <section className="groups-section">
+          <div className="section-title">Мои группы</div>
           <div className="group-list">
-            {groups.map((g) => (
+            {groups.map((g, index) => (
               <button
                 key={g.id}
-                className={`group-item ${selectedGroup === g.id ? 'active' : ''}`}
+                className={`group-item ${selectedGroup === g.id ? "active" : ""}`}
                 onClick={() => handleSelectGroup(g.id)}
               >
-                <div className="group-item-left">
-                  <span className="group-name">{g.name}</span>
-                  {g.userBalance !== undefined && g.userBalance !== 0 && (
-                    formatBalance(g.userBalance, g.currency)
-                  )}
+                <div className={`group-item-icon ${getGroupColor(index)}`}>
+                  {getGroupIcon(index)}
                 </div>
-                <span className="group-currency">{getCurrencySymbol(g.currency)}</span>
+                <div className="group-item-content">
+                  <div className="group-item-name">{g.name}</div>
+                  <div className="group-item-meta">
+                    {getCurrencySymbol(g.currency)}
+                  </div>
+                </div>
+                {g.userBalance !== undefined && g.userBalance !== 0 && (
+                  <div
+                    className={`group-item-balance ${g.userBalance >= 0 ? "positive" : "negative"}`}
+                  >
+                    {g.userBalance >= 0 ? "+" : ""}
+                    {g.userBalance.toFixed(0)}
+                  </div>
+                )}
               </button>
             ))}
           </div>
         </section>
       )}
 
-      {/* Детали группы */}
+      {/* Selected Group Details */}
       {selectedGroup && groupBalance && (
         <>
-          <section className="card group-detail-card">
-            <div className="card-header">
-              <h3>{groupBalance.group.name}</h3>
-              <div className="invite-actions">
-                {currentGroup?.createdById === user?.id && (
-                  <button className="icon-btn" onClick={openEditGroup} title="Редактировать">
-                    ✏️
+          {/* Tabs */}
+          <div className="tabs">
+            <button
+              className={`tab ${activeTab === "balance" ? "active" : ""}`}
+              onClick={() => setActiveTab("balance")}
+            >
+              ⚖️ Баланс
+            </button>
+            <button
+              className={`tab ${activeTab === "expenses" ? "active" : ""}`}
+              onClick={() => setActiveTab("expenses")}
+            >
+              🧾 Траты ({groupExpenses.length})
+            </button>
+          </div>
+
+          {/* Balance Tab */}
+          {activeTab === "balance" && (
+            <section className="balance-section">
+              <div className="balance-header">
+                <span className="section-title" style={{ marginBottom: 0 }}>
+                  {groupBalance.group.name}
+                </span>
+                <div className="invite-actions">
+                  {currentGroup?.createdById === user?.id && (
+                    <button className="icon-btn" onClick={openEditGroup}>
+                      ✏️
+                    </button>
+                  )}
+                  <button className="icon-btn" onClick={handleCopyInviteLink}>
+                    📋
                   </button>
-                )}
-                <button className="icon-btn" onClick={handleCopyInviteLink} title="Копировать ссылку">
-                  📋
-                </button>
-                <button className="icon-btn" onClick={handleShareInviteLink} title="Поделиться">
-                  📤
-                </button>
+                  <button className="icon-btn" onClick={handleShareInviteLink}>
+                    📤
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <div className="tabs">
-              <button 
-                className={`tab ${activeTab === 'balance' ? 'active' : ''}`}
-                onClick={() => setActiveTab('balance')}
-              >
-                ⚖️ Баланс
-              </button>
-              <button 
-                className={`tab ${activeTab === 'expenses' ? 'active' : ''}`}
-                onClick={() => setActiveTab('expenses')}
-              >
-                🧾 Траты ({groupExpenses.length})
-              </button>
-            </div>
+              <div className="balance-list">
+                {Object.entries(groupBalance.balances).map(([uid, balance]) => (
+                  <div className="balance-row" key={uid}>
+                    <div className="balance-user-avatar">
+                      {getUserInitials(groupBalance.userNames?.[uid] || "U")}
+                    </div>
+                    <span className="balance-user-name">
+                      {groupBalance.userNames?.[uid] || "Участник"}
+                      {uid === user?.id && " (вы)"}
+                    </span>
+                    <span
+                      className={`balance-user-amount ${balance >= 0 ? "positive" : "negative"}`}
+                    >
+                      {balance >= 0 ? "+" : ""}
+                      {balance.toFixed(0)}{" "}
+                      {getCurrencySymbol(groupBalance.group.currency)}
+                    </span>
+                  </div>
+                ))}
+              </div>
 
-            {activeTab === 'balance' && (
-              <div className="tab-content">
-                <div className="balance-list">
-                  {Object.entries(groupBalance.balances).map(([uid, balance]) => (
-                    <div className="balance-row" key={uid}>
-                      <span className="balance-name">
-                        {groupBalance.userNames?.[uid] || 'Участник'}
-                        {uid === user?.id && ' (вы)'}
-                      </span>
-                      <span className={`balance-amount ${balance >= 0 ? 'positive' : 'negative'}`}>
-                        {balance >= 0 ? '+' : ''}{balance.toFixed(2)} {getCurrencySymbol(groupBalance.group.currency)}
-                      </span>
+              {Object.keys(groupBalance.balances).length === 0 && (
+                <div className="empty-state">
+                  <div className="empty-state-icon">👥</div>
+                  <p className="empty-state-text">Пока нет участников</p>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Expenses Tab */}
+          {activeTab === "expenses" && (
+            <section className="expenses-section">
+              <div className="expenses-header">
+                <span className="section-title" style={{ marginBottom: 0 }}>
+                  Последние траты
+                </span>
+              </div>
+
+              {groupExpenses.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-state-icon">🧾</div>
+                  <p className="empty-state-text">Пока нет расходов</p>
+                </div>
+              ) : (
+                <div className="expenses-list">
+                  {groupExpenses.map((expense) => (
+                    <div className="expense-item" key={expense.id}>
+                      <div className="expense-icon">🧾</div>
+                      <div className="expense-details">
+                        <div className="expense-title">
+                          {expense.description}
+                        </div>
+                        <div className="expense-meta">
+                          {getUserName(expense.createdBy)} •{" "}
+                          {formatExpenseDate(expense.createdAt)}
+                        </div>
+                      </div>
+                      <div className="expense-right">
+                        <div className="expense-amount">
+                          {Number(expense.amount).toFixed(0)}{" "}
+                          {getCurrencySymbol(expense.currency)}
+                        </div>
+                        {expense.createdBy.id === user?.id && (
+                          <div className="expense-actions">
+                            <button
+                              className="expense-action-btn"
+                              onClick={() => handleEditExpense(expense)}
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              className="expense-action-btn danger"
+                              onClick={() => {
+                                setDeletingExpenseId(expense.id);
+                                setShowDeleteConfirm("expense");
+                              }}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
-                
-                {Object.keys(groupBalance.balances).length === 0 && (
-                  <p className="empty-state">Пока нет участников</p>
-                )}
-              </div>
-            )}
+              )}
+            </section>
+          )}
 
-            {activeTab === 'expenses' && (
-              <div className="tab-content">
-                {groupExpenses.length === 0 ? (
-                  <p className="empty-state">Пока нет расходов. Добавьте первый!</p>
-                ) : (
-                  <div className="expenses-list">
-                    {groupExpenses.map((expense) => (
-                      <div className="expense-item" key={expense.id}>
-                        <div className="expense-icon">🧾</div>
-                        <div className="expense-details">
-                          <div className="expense-title">{expense.description}</div>
-                          <div className="expense-meta">
-                            {getUserName(expense.createdBy)} оплатил(а) • {formatDate(expense.createdAt)}
-                          </div>
-                          <div className="expense-participants">
-                            {expense.shares.map(s => getUserName(s.user)).join(', ')}
-                          </div>
-                        </div>
-                        <div className="expense-right">
-                          <div className="expense-amount">
-                            {Number(expense.amount).toFixed(2)} {getCurrencySymbol(expense.currency)}
-                          </div>
-                          {expense.createdBy.id === user?.id && (
-                            <div className="expense-actions">
-                              <button className="small-icon-btn" onClick={() => handleEditExpense(expense)}>✏️</button>
-                              <button className="small-icon-btn danger" onClick={() => {
-                                setDeletingExpenseId(expense.id);
-                                setShowDeleteConfirm('expense');
-                              }}>🗑️</button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
-
-          <div className="action-buttons">
-            <button className="action-btn expense-btn" onClick={() => {
-              setEditingExpense(null);
-              setExpenseTitle('');
-              setExpenseAmount(0);
-              setSelectedParticipants(Object.keys(groupBalance.balances));
-              setShowAddExpense(true);
-            }}>
+          {/* Action Row */}
+          <div className="action-row">
+            <button className="action-btn primary" onClick={openQuickExpense}>
               ➕ Добавить расход
             </button>
-            <button className="action-btn settle-btn" onClick={() => setShowSettle(true)}>
-              💸 Погасить долг
+            <button
+              className="action-btn secondary"
+              onClick={() => setShowSettle(true)}
+            >
+              💸 Погасить
             </button>
           </div>
         </>
       )}
 
-      {/* Модалка приглашения */}
+      {/* Empty State */}
+      {groups.length === 0 && (
+        <div className="empty-state" style={{ padding: "60px 20px" }}>
+          <div className="empty-state-icon">👥</div>
+          <p className="empty-state-text">
+            Создайте первую группу для отслеживания расходов
+          </p>
+          <button
+            className="primary-btn"
+            style={{ marginTop: 20, width: "auto", padding: "14px 32px" }}
+            onClick={() => setShowCreateGroup(true)}
+          >
+            Создать группу
+          </button>
+        </div>
+      )}
+
+      {/* FAB */}
+      {groups.length > 0 && (
+        <button className="fab" onClick={openQuickExpense}>
+          +
+        </button>
+      )}
+
+      {/* Bottom Navigation */}
+      <nav className="bottom-nav">
+        <button
+          className={`nav-item ${currentScreen === "home" ? "active" : ""}`}
+          onClick={() => setCurrentScreen("home")}
+        >
+          🏠
+        </button>
+        <button
+          className={`nav-item ${currentScreen === "groups" ? "active" : ""}`}
+          onClick={() => setCurrentScreen("groups")}
+        >
+          📊
+        </button>
+        <button
+          className={`nav-item ${currentScreen === "activity" ? "active" : ""}`}
+          onClick={() => setCurrentScreen("activity")}
+        >
+          🔔
+        </button>
+        <button
+          className={`nav-item ${currentScreen === "profile" ? "active" : ""}`}
+          onClick={() => setCurrentScreen("profile")}
+        >
+          👤
+        </button>
+      </nav>
+
+      {/* Create Group Modal */}
+      {showCreateGroup && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowCreateGroup(false)}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Новая группа</h3>
+              <button
+                className="close-btn"
+                onClick={() => setShowCreateGroup(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <input
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              placeholder="Название группы"
+              autoFocus
+            />
+
+            <div className="currency-select">
+              <div
+                className="currency-input"
+                onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
+              >
+                <span>
+                  {getCurrencySymbol(newGroupCurrency)} {newGroupCurrency}
+                </span>
+                <span className="arrow">▼</span>
+              </div>
+
+              {showCurrencyDropdown && (
+                <div className="currency-dropdown">
+                  <input
+                    value={currencySearch}
+                    onChange={(e) => setCurrencySearch(e.target.value)}
+                    placeholder="Поиск валюты..."
+                    className="currency-search"
+                  />
+                  <div className="currency-list">
+                    {filteredCurrencies.map((c) => (
+                      <div
+                        key={c.code}
+                        className={`currency-option ${newGroupCurrency === c.code ? "selected" : ""}`}
+                        onClick={() => {
+                          setNewGroupCurrency(c.code);
+                          setShowCurrencyDropdown(false);
+                          setCurrencySearch("");
+                        }}
+                      >
+                        <span className="currency-symbol">{c.symbol}</span>
+                        <span className="currency-code">{c.code}</span>
+                        <span className="currency-name">{c.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={handleCreateGroup}
+              disabled={!newGroupName}
+              className="primary-btn"
+            >
+              Создать группу
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Invite Modal */}
       {pendingInvite && (
         <div className="modal-overlay">
           <div className="modal invite-modal">
@@ -666,146 +890,187 @@ function App() {
             <div className="invite-details">
               <span>{pendingInvite.membersCount} участник(ов)</span>
               <span>•</span>
-              <span>{getCurrencySymbol(pendingInvite.currency)} {pendingInvite.currency}</span>
+              <span>
+                {getCurrencySymbol(pendingInvite.currency)}{" "}
+                {pendingInvite.currency}
+              </span>
             </div>
-            <p className="invite-question">Хотите присоединиться к этой группе?</p>
+            <p className="invite-question">Хотите присоединиться?</p>
             <div className="invite-buttons">
-              <button className="decline-btn" onClick={handleDeclineInvite} disabled={inviteLoading}>Нет</button>
-              <button className="accept-btn" onClick={handleAcceptInvite} disabled={inviteLoading}>
-                {inviteLoading ? 'Загрузка...' : 'Да, присоединиться'}
+              <button
+                className="decline-btn"
+                onClick={handleDeclineInvite}
+                disabled={inviteLoading}
+              >
+                Нет
+              </button>
+              <button
+                className="accept-btn"
+                onClick={handleAcceptInvite}
+                disabled={inviteLoading}
+              >
+                {inviteLoading ? "..." : "Да"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Модалка добавления/редактирования расхода */}
+      {/* Add/Edit Expense Modal */}
       {showAddExpense && groupBalance && (
-        <div className="modal-overlay" onClick={() => { setShowAddExpense(false); setEditingExpense(null); }}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            setShowAddExpense(false);
+            setEditingExpense(null);
+          }}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>{editingExpense ? '✏️ Редактировать расход' : '🧾 Новый расход'}</h3>
-              <button className="close-btn" onClick={() => { setShowAddExpense(false); setEditingExpense(null); }}>✕</button>
+              <h3>{editingExpense ? "Редактировать" : "Новый расход"}</h3>
+              <button
+                className="close-btn"
+                onClick={() => {
+                  setShowAddExpense(false);
+                  setEditingExpense(null);
+                }}
+              >
+                ✕
+              </button>
             </div>
-            
+
             <input
               value={expenseTitle}
               onChange={(e) => setExpenseTitle(e.target.value)}
               placeholder="Описание (например: Ужин)"
-              className="full-width"
+              autoFocus
             />
             <input
               type="number"
-              value={expenseAmount || ''}
+              value={expenseAmount || ""}
               onChange={(e) => setExpenseAmount(Number(e.target.value))}
               placeholder={`Сумма в ${getCurrencySymbol(groupBalance.group.currency)}`}
-              className="full-width"
             />
-            
-            <p className="label">Разделить между:</p>
+
+            <span className="label">Разделить между:</span>
             <div className="participants-list">
               {Object.entries(groupBalance.balances).map(([uid]) => (
                 <button
                   key={uid}
-                  className={`participant-chip ${selectedParticipants.includes(uid) ? 'selected' : ''}`}
+                  className={`participant-chip ${selectedParticipants.includes(uid) ? "selected" : ""}`}
                   onClick={() => toggleParticipant(uid)}
                 >
-                  {groupBalance.userNames?.[uid] || 'Участник'}
-                  {uid === user?.id && ' (вы)'}
-                  {selectedParticipants.includes(uid) && ' ✓'}
+                  {groupBalance.userNames?.[uid] || "Участник"}
+                  {uid === user?.id && " (вы)"}
                 </button>
               ))}
             </div>
-            
+
             {selectedParticipants.length > 0 && expenseAmount > 0 && (
               <p className="split-info">
-                По {(expenseAmount / selectedParticipants.length).toFixed(2)} {getCurrencySymbol(groupBalance.group.currency)} на человека
+                По {(expenseAmount / selectedParticipants.length).toFixed(0)}{" "}
+                {getCurrencySymbol(groupBalance.group.currency)} на человека
               </p>
             )}
-            
-            <button 
-              onClick={handleAddExpense} 
-              disabled={!expenseAmount || selectedParticipants.length === 0} 
+
+            <button
+              onClick={handleAddExpense}
+              disabled={!expenseAmount || selectedParticipants.length === 0}
               className="primary-btn"
             >
-              {editingExpense ? 'Сохранить' : 'Добавить расход'}
+              {editingExpense ? "Сохранить" : "Добавить"}
             </button>
           </div>
         </div>
       )}
 
-      {/* Модалка погашения долга */}
+      {/* Settle Modal */}
       {showSettle && groupBalance && (
         <div className="modal-overlay" onClick={() => setShowSettle(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>💸 Погасить долг</h3>
-              <button className="close-btn" onClick={() => setShowSettle(false)}>✕</button>
+              <h3>Погасить долг</h3>
+              <button
+                className="close-btn"
+                onClick={() => setShowSettle(false)}
+              >
+                ✕
+              </button>
             </div>
-            
-            <p className="label">Кому вы перевели:</p>
+
+            <span className="label">Кому вы перевели:</span>
             <div className="participants-list">
               {Object.entries(groupBalance.balances)
                 .filter(([uid]) => uid !== user?.id)
                 .map(([uid]) => (
                   <button
                     key={uid}
-                    className={`participant-chip ${settleToUser === uid ? 'selected' : ''}`}
+                    className={`participant-chip ${settleToUser === uid ? "selected" : ""}`}
                     onClick={() => setSettleToUser(uid)}
                   >
-                    {groupBalance.userNames?.[uid] || 'Участник'}
-                    {settleToUser === uid && ' ✓'}
+                    {groupBalance.userNames?.[uid] || "Участник"}
                   </button>
                 ))}
             </div>
-            
+
             <input
               type="number"
-              value={settleAmount || ''}
+              value={settleAmount || ""}
               onChange={(e) => setSettleAmount(Number(e.target.value))}
               placeholder={`Сумма в ${getCurrencySymbol(groupBalance.group.currency)}`}
-              className="full-width"
             />
-            
-            <button onClick={handleSettle} disabled={!settleToUser || !settleAmount} className="primary-btn">
+
+            <button
+              onClick={handleSettle}
+              disabled={!settleToUser || !settleAmount}
+              className="primary-btn"
+            >
               Отметить перевод
             </button>
           </div>
         </div>
       )}
 
-      {/* Модалка редактирования группы */}
+      {/* Edit Group Modal */}
       {showEditGroup && currentGroup && (
         <div className="modal-overlay" onClick={() => setShowEditGroup(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>✏️ Редактировать группу</h3>
-              <button className="close-btn" onClick={() => setShowEditGroup(false)}>✕</button>
+              <h3>Редактировать группу</h3>
+              <button
+                className="close-btn"
+                onClick={() => setShowEditGroup(false)}
+              >
+                ✕
+              </button>
             </div>
-            
+
             <input
               value={editGroupName}
               onChange={(e) => setEditGroupName(e.target.value)}
               placeholder="Название группы"
-              className="full-width"
             />
-            
+
             <div className="currency-select">
-              <div 
+              <div
                 className="currency-input"
-                onClick={() => setShowEditCurrencyDropdown(!showEditCurrencyDropdown)}
+                onClick={() =>
+                  setShowEditCurrencyDropdown(!showEditCurrencyDropdown)
+                }
               >
-                <span>{getCurrencySymbol(editGroupCurrency)} {editGroupCurrency}</span>
+                <span>
+                  {getCurrencySymbol(editGroupCurrency)} {editGroupCurrency}
+                </span>
                 <span className="arrow">▼</span>
               </div>
-              
+
               {showEditCurrencyDropdown && (
                 <div className="currency-dropdown">
                   <div className="currency-list">
-                    {CURRENCIES.map(c => (
+                    {CURRENCIES.map((c) => (
                       <div
                         key={c.code}
-                        className={`currency-option ${editGroupCurrency === c.code ? 'selected' : ''}`}
+                        className={`currency-option ${editGroupCurrency === c.code ? "selected" : ""}`}
                         onClick={() => {
                           setEditGroupCurrency(c.code);
                           setShowEditCurrencyDropdown(false);
@@ -820,13 +1085,17 @@ function App() {
                 </div>
               )}
             </div>
-            
-            <button onClick={handleUpdateGroup} disabled={!editGroupName} className="primary-btn">
+
+            <button
+              onClick={handleUpdateGroup}
+              disabled={!editGroupName}
+              className="primary-btn"
+            >
               Сохранить
             </button>
-            
-            <button 
-              onClick={() => setShowDeleteConfirm('group')} 
+
+            <button
+              onClick={() => setShowDeleteConfirm("group")}
               className="danger-btn"
             >
               🗑️ Удалить группу
@@ -835,31 +1104,42 @@ function App() {
         </div>
       )}
 
-      {/* Модалка подтверждения удаления */}
+      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="modal-overlay">
           <div className="modal confirm-modal">
             <div className="confirm-icon">⚠️</div>
             <h3>Подтверждение</h3>
             <p>
-              {showDeleteConfirm === 'group' 
-                ? 'Вы уверены, что хотите удалить эту группу? Все траты будут удалены.'
-                : 'Вы уверены, что хотите удалить этот расход?'
-              }
+              {showDeleteConfirm === "group"
+                ? "Удалить группу и все её траты?"
+                : "Удалить этот расход?"}
             </p>
             <div className="confirm-buttons">
-              <button className="decline-btn" onClick={() => {
-                setShowDeleteConfirm(null);
-                setDeletingExpenseId(null);
-              }}>Отмена</button>
-              <button className="danger-btn" onClick={showDeleteConfirm === 'group' ? handleDeleteGroup : handleDeleteExpense}>
+              <button
+                className="decline-btn"
+                onClick={() => {
+                  setShowDeleteConfirm(null);
+                  setDeletingExpenseId(null);
+                }}
+              >
+                Отмена
+              </button>
+              <button
+                className="danger-btn"
+                onClick={
+                  showDeleteConfirm === "group"
+                    ? handleDeleteGroup
+                    : handleDeleteExpense
+                }
+              >
                 Удалить
               </button>
             </div>
           </div>
         </div>
       )}
-      </div>
+    </div>
   );
 }
 
