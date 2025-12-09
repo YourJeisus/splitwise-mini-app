@@ -33,6 +33,30 @@ export type GroupBalance = {
   expensesCount: number;
 };
 
+export type Expense = {
+  id: string;
+  description: string;
+  amount: number;
+  currency: string;
+  category?: string;
+  createdAt: string;
+  createdBy: {
+    id: string;
+    firstName?: string;
+    username?: string;
+  };
+  shares: Array<{
+    userId: string;
+    paid: number;
+    owed: number;
+    user: {
+      id: string;
+      firstName?: string;
+      username?: string;
+    };
+  }>;
+};
+
 export const createApiClient = (initData: string) => {
   const rawUrl = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001';
   const baseUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
@@ -65,6 +89,7 @@ export const createApiClient = (initData: string) => {
     joinGroup: (inviteCode: string) =>
       request<Group>(`/groups/join/${inviteCode}`, { method: 'POST' }),
     getGroupBalance: (groupId: string) => request<GroupBalance>(`/groups/${groupId}/balance`),
+    getGroupExpenses: (groupId: string) => request<Expense[]>(`/expenses/group/${groupId}`),
     createExpense: (payload: { groupId: string; description: string; amount: number; currency: string; shares: { userId: string; paid: number; owed: number }[] }) =>
       request<{ id: string }>('/expenses', { method: 'POST', body: payload }),
     createSettlement: (payload: { toUserId: string; amount: number; currency?: string; note?: string }) =>

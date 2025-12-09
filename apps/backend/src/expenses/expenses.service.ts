@@ -30,7 +30,18 @@ export class ExpensesService {
   async listByGroup(groupId: string) {
     return this.prisma.expense.findMany({
       where: { groupId },
-      include: { shares: true },
+      include: { 
+        shares: {
+          include: {
+            user: {
+              select: { id: true, firstName: true, username: true }
+            }
+          }
+        },
+        createdBy: {
+          select: { id: true, firstName: true, username: true }
+        }
+      },
       orderBy: { createdAt: 'desc' }
     });
   }
