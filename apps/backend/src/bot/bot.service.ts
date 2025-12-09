@@ -41,12 +41,14 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
   }
 
   private setupHandlers() {
+    if (!this.bot) return;
+
     this.bot.start((ctx) => {
       const firstName = ctx.from?.first_name || "друг";
       return ctx.reply(
         `👋 Привет, ${firstName}!\n\nДобро пожаловать в ПОПОЛАМ — приложение, которое считает всё за вас и сохраняет дружбу.\n\nНажми кнопку ниже, чтобы открыть приложение:`,
         Markup.inlineKeyboard([
-          Markup.button.webApp("📱 Открыть SplitWise", this.webAppUrl),
+          Markup.button.webApp("📱 Открыть ПОПОЛАМ", this.webAppUrl),
         ])
       );
     });
@@ -55,7 +57,7 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       return ctx.reply(
         "📌 Команды:\n/start — Начать и открыть приложение\n/help — Показать справку\n/app — Открыть приложение",
         Markup.inlineKeyboard([
-          Markup.button.webApp("📱 Открыть SplitWise", this.webAppUrl),
+          Markup.button.webApp("📱 Открыть ПОПОЛАМ", this.webAppUrl),
         ])
       );
     });
@@ -64,7 +66,7 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       return ctx.reply(
         "Нажми кнопку, чтобы открыть приложение:",
         Markup.inlineKeyboard([
-          Markup.button.webApp("📱 Открыть SplitWise", this.webAppUrl),
+          Markup.button.webApp("📱 Открыть ПОПОЛАМ", this.webAppUrl),
         ])
       );
     });
