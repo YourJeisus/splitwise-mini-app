@@ -412,6 +412,12 @@ function App() {
     if (webApp?.initData) {
       webApp.ready?.();
       webApp.expand?.();
+
+      // Fullscreen mode
+      if (webApp.requestFullscreen) {
+        webApp.requestFullscreen();
+      }
+
       setInitData(webApp.initData);
 
       const startParam = webApp.initDataUnsafe?.start_param;
@@ -533,7 +539,7 @@ function App() {
     if (!groupBalance?.group.inviteCode) return;
     const botUsername = "JeisusSplitBot";
     const link = `https://t.me/${botUsername}?startapp=${groupBalance.group.inviteCode}`;
-    const text = `Присоединяйся к группе "${groupBalance.group.name}" в Splitwise!`;
+    const text = `Присоединяйся к группе "${groupBalance.group.name}" в JeisusSplit!`;
     window.Telegram?.WebApp?.openTelegramLink?.(
       `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`
     );
