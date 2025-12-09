@@ -1,9 +1,23 @@
 export {};
 
 declare global {
+  interface TelegramWebAppInitDataUnsafe {
+    query_id?: string;
+    user?: {
+      id: number;
+      first_name: string;
+      last_name?: string;
+      username?: string;
+      language_code?: string;
+    };
+    start_param?: string;
+    auth_date?: number;
+    hash?: string;
+  }
+
   interface TelegramWebApp {
     initData?: string;
-    initDataUnsafe?: unknown;
+    initDataUnsafe?: TelegramWebAppInitDataUnsafe;
     ready?: () => void;
     expand?: () => void;
     close?: () => void;

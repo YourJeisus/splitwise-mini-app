@@ -86,6 +86,8 @@ export const createApiClient = (initData: string) => {
     listGroups: () => request<Group[]>('/groups'),
     createGroup: (payload: { name: string; currency?: string }) =>
       request<Group>('/groups', { method: 'POST', body: payload }),
+    getGroupByInvite: (inviteCode: string) =>
+      request<{ id: string; name: string; currency: string; membersCount: number }>(`/groups/invite/${inviteCode}`),
     joinGroup: (inviteCode: string) =>
       request<Group>(`/groups/join/${inviteCode}`, { method: 'POST' }),
     getGroupBalance: (groupId: string) => request<GroupBalance>(`/groups/${groupId}/balance`),

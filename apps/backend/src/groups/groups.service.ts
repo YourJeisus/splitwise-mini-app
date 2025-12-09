@@ -40,6 +40,23 @@ export class GroupsService {
     return group;
   }
 
+  async getByInviteCode(inviteCode: string) {
+    const group = await this.prisma.group.findUnique({
+      where: { inviteCode },
+      include: {
+        _count: { select: { members: true } }
+      }
+    });
+    if (!group) throw new NotFoundException('Группа не найдена');
+    
+    return {
+      id: group.id,
+      name: group.name,
+      currency: group.currency,
+      membersCount: group._count.members
+    };
+  }
+
   async joinByInvite(userId: string, inviteCode: string) {
     const group = await this.prisma.group.findUnique({
       where: { inviteCode }

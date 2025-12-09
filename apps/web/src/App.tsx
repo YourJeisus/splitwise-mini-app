@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import './App.css';
 import { createApiClient } from './api';
 import type { User, Group, GroupBalance, Expense } from './api';
@@ -24,6 +24,14 @@ const CURRENCIES = [
 
 type Tab = 'balance' | 'expenses';
 
+type InviteInfo = {
+  id: string;
+  name: string;
+  currency: string;
+  membersCount: number;
+  inviteCode: string;
+};
+
 function App() {
   const [initData, setInitData] = useState('');
   const [user, setUser] = useState<User | null>(null);
@@ -36,8 +44,10 @@ function App() {
   const [currencySearch, setCurrencySearch] = useState('');
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
   
-  // Присоединение к группе
-  const [inviteCode, setInviteCode] = useState('');
+  // Приглашение в группу
+  const [pendingInvite, setPendingInvite] = useState<InviteInfo | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
   
   // Выбранная группа
   const [selectedGroup, setSelectedGroup] = useState('');
@@ -70,6 +80,35 @@ function App() {
     );
   }, [currencySearch]);
 
+  // Проверка invite-кода и показ модалки
+  const checkInviteCode = useCallback(async (code: string) => {
+    if (!code) return;
+    
+    setInviteLoading(true);
+    setInviteError(null);
+    
+    try {
+      const groupInfo = await api.getGroupByInvite(code);
+      
+      // Проверяем, не состоит ли пользователь уже в этой группе
+      const userGroups = await api.listGroups();
+      const alreadyMember = userGroups.some(g => g.id === groupInfo.id);
+      
+      if (alreadyMember) {
+        setInviteError('Вы уже состоите в этой группе');
+        // Выбираем эту группу
+        setGroups(userGroups);
+        await handleSelectGroup(groupInfo.id);
+      } else {
+        setPendingInvite({ ...groupInfo, inviteCode: code });
+      }
+    } catch (error) {
+      setInviteError((error as Error).message || 'Группа не найдена');
+    } finally {
+      setInviteLoading(false);
+    }
+  }, [api]);
+
   useEffect(() => {
     const webApp = window.Telegram?.WebApp;
     if (webApp?.initData) {
@@ -77,6 +116,13 @@ function App() {
       webApp.expand?.();
       setInitData(webApp.initData);
       setStatus('Telegram готов');
+      
+      // Получаем start_param из Telegram
+      const startParam = webApp.initDataUnsafe?.start_param;
+      if (startParam) {
+        // Сохраняем для обработки после авторизации
+        sessionStorage.setItem('pendingInviteCode', startParam);
+      }
     } else {
       setStatus('Нет Telegram WebApp');
     }
@@ -87,15 +133,6 @@ function App() {
     void bootstrap();
   }, [api]);
 
-  // Проверяем URL на invite-код при загрузке
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('startapp') || params.get('invite');
-    if (code) {
-      setInviteCode(code);
-    }
-  }, []);
-
   const bootstrap = async () => {
     try {
       setStatus('Авторизация...');
@@ -103,9 +140,16 @@ function App() {
       setUser(me);
       const groupList = await api.listGroups();
       setGroups(groupList);
-      if (groupList[0]) {
+      
+      // Проверяем pending invite после авторизации
+      const pendingCode = sessionStorage.getItem('pendingInviteCode');
+      if (pendingCode) {
+        sessionStorage.removeItem('pendingInviteCode');
+        await checkInviteCode(pendingCode);
+      } else if (groupList[0]) {
         await handleSelectGroup(groupList[0].id);
       }
+      
       setStatus('Готово');
     } catch (error) {
       setStatus(`Ошибка: ${(error as Error).message}`);
@@ -130,19 +174,35 @@ function App() {
     }
   };
 
-  const handleJoinGroup = async () => {
-    if (!inviteCode) return;
+  const handleAcceptInvite = async () => {
+    if (!pendingInvite) return;
+    
+    setInviteLoading(true);
     try {
-      const group = await api.joinGroup(inviteCode.trim());
-      setInviteCode('');
+      const group = await api.joinGroup(pendingInvite.inviteCode);
+      setPendingInvite(null);
       const updated = await api.listGroups();
       setGroups(updated);
       await handleSelectGroup(group.id);
-      window.Telegram?.WebApp?.showAlert?.(`Вы присоединились к группе "${group.name}"!`) || 
-        alert(`Вы присоединились к группе "${group.name}"!`);
+      
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
+      window.Telegram?.WebApp?.showAlert?.(`Вы присоединились к группе "${group.name}"!`);
     } catch (error) {
-      alert(`Ошибка: ${(error as Error).message}`);
+      const message = (error as Error).message;
+      if (message.includes('уже в этой группе')) {
+        setPendingInvite(null);
+        setInviteError('Вы уже состоите в этой группе');
+      } else {
+        alert(`Ошибка: ${message}`);
+      }
+    } finally {
+      setInviteLoading(false);
     }
+  };
+
+  const handleDeclineInvite = () => {
+    setPendingInvite(null);
+    window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light');
   };
 
   const handleSelectGroup = async (groupId: string) => {
@@ -155,7 +215,6 @@ function App() {
     ]);
     setGroupBalance(balance);
     setGroupExpenses(expenses);
-    // По умолчанию выбираем всех участников
     setSelectedParticipants(Object.keys(balance.balances));
   };
 
@@ -164,6 +223,7 @@ function App() {
     const botUsername = 'JeisusSplitBot';
     const link = `https://t.me/${botUsername}?startapp=${groupBalance.group.inviteCode}`;
     navigator.clipboard.writeText(link);
+    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
     window.Telegram?.WebApp?.showAlert?.('Ссылка скопирована!') || alert('Ссылка скопирована!');
   };
 
@@ -207,6 +267,8 @@ function App() {
       setExpenseAmount(0);
       setShowAddExpense(false);
       
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
+      
       const [balance, expenses] = await Promise.all([
         api.getGroupBalance(selectedGroup),
         api.getGroupExpenses(selectedGroup)
@@ -230,6 +292,9 @@ function App() {
       setSettleAmount(0);
       setSettleToUser('');
       setShowSettle(false);
+      
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
+      
       if (selectedGroup) {
         setGroupBalance(await api.getGroupBalance(selectedGroup));
       }
@@ -274,20 +339,13 @@ function App() {
         <div className="logo">💰 Splitwise</div>
       </header>
 
-      {/* Присоединиться к группе */}
-      <section className="card">
-        <h3>🔗 Присоединиться к группе</h3>
-        <div className="inline-form">
-          <input
-            value={inviteCode}
-            onChange={(e) => setInviteCode(e.target.value)}
-            placeholder="Введите код приглашения"
-          />
-          <button onClick={handleJoinGroup} disabled={!inviteCode}>
-            Войти
-          </button>
+      {/* Ошибка приглашения */}
+      {inviteError && (
+        <div className="invite-error">
+          <span>{inviteError}</span>
+          <button onClick={() => setInviteError(null)}>✕</button>
         </div>
-      </section>
+      )}
 
       {/* Создание группы */}
       <section className="card">
@@ -458,6 +516,39 @@ function App() {
             </button>
           </div>
         </>
+      )}
+
+      {/* Модалка приглашения в группу */}
+      {pendingInvite && (
+        <div className="modal-overlay">
+          <div className="modal invite-modal">
+            <div className="invite-icon">👥</div>
+            <h3>Приглашение в группу</h3>
+            <div className="invite-group-name">{pendingInvite.name}</div>
+            <div className="invite-details">
+              <span>{pendingInvite.membersCount} участник(ов)</span>
+              <span>•</span>
+              <span>{getCurrencySymbol(pendingInvite.currency)} {pendingInvite.currency}</span>
+            </div>
+            <p className="invite-question">Хотите присоединиться к этой группе?</p>
+            <div className="invite-buttons">
+              <button 
+                className="decline-btn" 
+                onClick={handleDeclineInvite}
+                disabled={inviteLoading}
+              >
+                Нет
+              </button>
+              <button 
+                className="accept-btn" 
+                onClick={handleAcceptInvite}
+                disabled={inviteLoading}
+              >
+                {inviteLoading ? 'Загрузка...' : 'Да, присоединиться'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Модалка добавления расхода */}
