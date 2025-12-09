@@ -110,6 +110,7 @@ export class GroupsService {
       include: {
         expenses: { include: { shares: true } },
         members: { include: { user: true } },
+        settlements: true,
       },
     });
     if (!group) throw new NotFoundException("Group not found");
@@ -156,6 +157,17 @@ export class GroupsService {
           }
         });
       });
+    });
+
+    // Учитываем погашения (settlements) — уменьшают долг
+    group.settlements.forEach((settlement) => {
+      const from = settlement.fromUserId;
+      const to = settlement.toUserId;
+      const amount = Number(settlement.amount);
+      // Погашение: from заплатил to, значит долг from перед to уменьшается
+      if (debts[from] && debts[from][to]) {
+        debts[from][to] = Math.max(0, debts[from][to] - amount);
+      }
     });
 
     // Взаимозачёт: если A должен B 300, а B должен A 2600, то A должен 0, B должен 2300

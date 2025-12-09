@@ -75,7 +75,9 @@ body::before {
   top: 0;
   left: 0;
   right: 0;
-  height: calc(var(--tg-safe-area-top, 0px) + var(--tg-content-safe-area-top, 0px));
+  height: calc(
+    var(--tg-safe-area-top, 0px) + var(--tg-content-safe-area-top, 0px)
+  );
   background: var(--bg-primary);
   z-index: 9999;
   pointer-events: none;
@@ -94,7 +96,9 @@ body::after {
 }
 
 #root {
-  padding-top: calc(var(--tg-safe-area-top, 0px) + var(--tg-content-safe-area-top, 0px));
+  padding-top: calc(
+    var(--tg-safe-area-top, 0px) + var(--tg-content-safe-area-top, 0px)
+  );
   padding-bottom: var(--tg-safe-area-bottom, 0px);
   min-height: 100vh;
   box-sizing: border-box;

@@ -688,6 +688,7 @@ function App() {
     try {
       await api.createSettlement({
         toUserId: settleToUser,
+        groupId: selectedGroup,
         amount: settleAmount,
         currency: groupBalance?.group.currency,
       });

@@ -11,6 +11,7 @@ export class SettlementsService {
       data: {
         fromUserId,
         toUserId: dto.toUserId,
+        groupId: dto.groupId,
         amount: dto.amount,
         currency: dto.currency ?? 'USD',
         note: dto.note

@@ -4,6 +4,9 @@ export class CreateSettlementDto {
   @IsString()
   toUserId!: string;
 
+  @IsString()
+  groupId!: string;
+
   @IsNumber()
   amount!: number;
 

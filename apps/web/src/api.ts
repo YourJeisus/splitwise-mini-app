@@ -146,6 +146,7 @@ export const createApiClient = (initData: string) => {
       }),
     createSettlement: (payload: {
       toUserId: string;
+      groupId: string;
       amount: number;
       currency?: string;
       note?: string;
