@@ -23,7 +23,9 @@ export type Group = {
   name: string;
   currency: string;
   inviteCode?: string;
+  createdById?: string;
   role: string;
+  userBalance?: number;
 };
 
 export type GroupBalance = {
@@ -91,9 +93,17 @@ export const createApiClient = (initData: string) => {
     joinGroup: (inviteCode: string) =>
       request<Group>(`/groups/join/${inviteCode}`, { method: 'POST' }),
     getGroupBalance: (groupId: string) => request<GroupBalance>(`/groups/${groupId}/balance`),
+    updateGroup: (groupId: string, payload: { name?: string; currency?: string }) =>
+      request<Group>(`/groups/${groupId}`, { method: 'PATCH', body: payload }),
+    deleteGroup: (groupId: string) =>
+      request<{ success: boolean }>(`/groups/${groupId}`, { method: 'DELETE' }),
     getGroupExpenses: (groupId: string) => request<Expense[]>(`/expenses/group/${groupId}`),
     createExpense: (payload: { groupId: string; description: string; amount: number; currency: string; shares: { userId: string; paid: number; owed: number }[] }) =>
       request<{ id: string }>('/expenses', { method: 'POST', body: payload }),
+    updateExpense: (expenseId: string, payload: { description?: string; amount?: number; shares?: { userId: string; paid: number; owed: number }[] }) =>
+      request<Expense>(`/expenses/${expenseId}`, { method: 'PATCH', body: payload }),
+    deleteExpense: (expenseId: string) =>
+      request<{ success: boolean }>(`/expenses/${expenseId}`, { method: 'DELETE' }),
     createSettlement: (payload: { toUserId: string; amount: number; currency?: string; note?: string }) =>
       request<{ id: string }>('/settlements', { method: 'POST', body: payload })
   };

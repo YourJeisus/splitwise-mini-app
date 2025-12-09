@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { GroupRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateGroupDto } from './dto/create-group.dto';
@@ -10,16 +10,36 @@ export class GroupsService {
   async list(userId: string) {
     const memberships = await this.prisma.groupMember.findMany({
       where: { userId },
-      include: { group: true }
+      include: { 
+        group: {
+          include: {
+            expenses: { include: { shares: true } }
+          }
+        }
+      }
     });
 
-    return memberships.map((member) => ({
-      id: member.group.id,
-      name: member.group.name,
-      currency: member.group.currency,
-      inviteCode: member.group.inviteCode,
-      role: member.role
-    }));
+    return memberships.map((member) => {
+      // Рассчитываем баланс пользователя в этой группе
+      let userBalance = 0;
+      member.group.expenses.forEach((expense) => {
+        expense.shares.forEach((share) => {
+          if (share.userId === userId) {
+            userBalance += Number(share.paid) - Number(share.owed);
+          }
+        });
+      });
+
+      return {
+        id: member.group.id,
+        name: member.group.name,
+        currency: member.group.currency,
+        inviteCode: member.group.inviteCode,
+        createdById: member.group.createdById,
+        role: member.role,
+        userBalance
+      };
+    });
   }
 
   async create(userId: string, dto: CreateGroupDto) {
@@ -109,6 +129,56 @@ export class GroupsService {
       userNames,
       expensesCount: group.expenses.length
     };
+  }
+
+  async update(userId: string, groupId: string, dto: { name?: string; currency?: string }) {
+    // Проверяем, что пользователь создатель группы
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId }
+    });
+    
+    if (!group) throw new NotFoundException('Группа не найдена');
+    if (group.createdById !== userId) {
+      throw new ForbiddenException('Только создатель может редактировать группу');
+    }
+
+    return this.prisma.group.update({
+      where: { id: groupId },
+      data: {
+        ...(dto.name && { name: dto.name }),
+        ...(dto.currency && { currency: dto.currency })
+      }
+    });
+  }
+
+  async delete(userId: string, groupId: string) {
+    // Проверяем, что пользователь создатель группы
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId }
+    });
+    
+    if (!group) throw new NotFoundException('Группа не найдена');
+    if (group.createdById !== userId) {
+      throw new ForbiddenException('Только создатель может удалить группу');
+    }
+
+    // Удаляем все связанные данные
+    await this.prisma.$transaction([
+      this.prisma.expenseShare.deleteMany({
+        where: { expense: { groupId } }
+      }),
+      this.prisma.expense.deleteMany({
+        where: { groupId }
+      }),
+      this.prisma.groupMember.deleteMany({
+        where: { groupId }
+      }),
+      this.prisma.group.delete({
+        where: { id: groupId }
+      })
+    ]);
+
+    return { success: true };
   }
 }
 

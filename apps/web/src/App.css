@@ -265,6 +265,12 @@ button:disabled {
   color: white;
 }
 
+.group-item-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .group-name {
   font-weight: 500;
 }
@@ -272,6 +278,23 @@ button:disabled {
 .group-currency {
   font-size: 18px;
   opacity: 0.7;
+}
+
+.balance-preview {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.balance-preview.positive {
+  color: #27ae60;
+}
+
+.balance-preview.negative {
+  color: #e74c3c;
+}
+
+.group-item.active .balance-preview {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 /* Balance */
@@ -453,11 +476,35 @@ button:disabled {
   text-overflow: ellipsis;
 }
 
+.expense-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
 .expense-amount {
   font-weight: 600;
   font-size: 15px;
   white-space: nowrap;
   color: var(--tg-theme-text-color, #1a1a1a);
+}
+
+.expense-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.small-icon-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  background: var(--tg-theme-secondary-bg-color, #fff);
+  border-radius: 6px;
+  border: 1px solid var(--tg-theme-hint-color, #ddd);
+}
+
+.small-icon-btn.danger {
+  border-color: #e74c3c;
 }
 
 /* Action Buttons */
@@ -628,6 +675,44 @@ button:disabled {
 .accept-btn {
   background: linear-gradient(135deg, #5cc6a0 0%, #3498db 100%);
   color: white;
+}
+
+/* Danger Button */
+.danger-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px 20px;
+  background: #e74c3c;
+  color: white;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Confirm Modal */
+.confirm-modal {
+  text-align: center;
+  padding: 32px 24px;
+}
+
+.confirm-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.confirm-modal p {
+  color: var(--tg-theme-hint-color, #666);
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.confirm-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.confirm-buttons button {
+  flex: 1;
 }
 
 /* Scrollbar */

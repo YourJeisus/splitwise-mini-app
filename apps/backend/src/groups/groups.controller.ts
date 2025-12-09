@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Patch, Delete, UseGuards } from '@nestjs/common';
 import { TelegramAuthGuard } from '../auth/telegram.guard';
 import { AuthUser } from '../common/decorators/auth-user.decorator';
 import { GroupsService } from './groups.service';
@@ -30,6 +30,22 @@ export class GroupsController {
   @Post('join/:inviteCode')
   join(@AuthUser() user: any, @Param('inviteCode') inviteCode: string) {
     return this.groupsService.joinByInvite(user.id, inviteCode);
+  }
+
+  @UseGuards(TelegramAuthGuard)
+  @Patch(':id')
+  update(
+    @AuthUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: { name?: string; currency?: string }
+  ) {
+    return this.groupsService.update(user.id, id, dto);
+  }
+
+  @UseGuards(TelegramAuthGuard)
+  @Delete(':id')
+  delete(@AuthUser() user: any, @Param('id') id: string) {
+    return this.groupsService.delete(user.id, id);
   }
 
   @UseGuards(TelegramAuthGuard)
