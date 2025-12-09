@@ -34,7 +34,8 @@ export type GroupBalance = {
 };
 
 export const createApiClient = (initData: string) => {
-  const baseUrl = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001';
+  const rawUrl = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001';
+  const baseUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
 
   const request = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
     const res = await fetch(`${baseUrl}${path}`, {
