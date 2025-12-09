@@ -414,8 +414,9 @@ function App() {
       webApp.expand?.();
 
       // Fullscreen mode
-      if (webApp.requestFullscreen) {
-        webApp.requestFullscreen();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((webApp as any).requestFullscreen) {
+        (webApp as any).requestFullscreen();
       }
 
       setInitData(webApp.initData);
