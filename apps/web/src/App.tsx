@@ -425,23 +425,23 @@ function App() {
         const safeArea = wa.safeAreaInset || {};
         const contentSafeArea = wa.contentSafeAreaInset || {};
         document.documentElement.style.setProperty(
-          '--tg-safe-area-top',
+          "--tg-safe-area-top",
           `${safeArea.top || 0}px`
         );
         document.documentElement.style.setProperty(
-          '--tg-safe-area-bottom',
+          "--tg-safe-area-bottom",
           `${safeArea.bottom || 0}px`
         );
         document.documentElement.style.setProperty(
-          '--tg-content-safe-area-top',
+          "--tg-content-safe-area-top",
           `${contentSafeArea.top || 0}px`
         );
       };
       setSafeAreaVars();
-      
+
       // Слушаем изменения viewport
       if (wa.onEvent) {
-        wa.onEvent('viewportChanged', setSafeAreaVars);
+        wa.onEvent("viewportChanged", setSafeAreaVars);
       }
 
       setInitData(webApp.initData);
