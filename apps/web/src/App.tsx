@@ -417,11 +417,12 @@ function App() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const wa = webApp as any;
       const platform = wa.platform || "";
-      const isMobile =
+      const isMobilePlatform =
         platform === "android" ||
         platform === "android_x" ||
         platform === "ios";
-      if (isMobile && wa.requestFullscreen) {
+      const isMobileUA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if ((isMobilePlatform || isMobileUA) && !/Windows|Macintosh|Linux/.test(navigator.userAgent) && wa.requestFullscreen) {
         wa.requestFullscreen();
       }
 
