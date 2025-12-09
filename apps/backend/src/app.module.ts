@@ -1,12 +1,13 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { AppController } from './app.controller';
-import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
-import { GroupsModule } from './groups/groups.module';
-import { ExpensesModule } from './expenses/expenses.module';
-import { SettlementsModule } from './settlements/settlements.module';
-import { PrismaModule } from './prisma/prisma.module';
+import { Module } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
+import { AppController } from "./app.controller";
+import { AuthModule } from "./auth/auth.module";
+import { UsersModule } from "./users/users.module";
+import { GroupsModule } from "./groups/groups.module";
+import { ExpensesModule } from "./expenses/expenses.module";
+import { SettlementsModule } from "./settlements/settlements.module";
+import { PrismaModule } from "./prisma/prisma.module";
+import { BotModule } from "./bot/bot.module";
 
 @Module({
   imports: [
@@ -16,9 +17,9 @@ import { PrismaModule } from './prisma/prisma.module';
     UsersModule,
     GroupsModule,
     ExpensesModule,
-    SettlementsModule
+    SettlementsModule,
+    BotModule,
   ],
-  controllers: [AppController]
+  controllers: [AppController],
 })
 export class AppModule {}
-
