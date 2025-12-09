@@ -5,13 +5,11 @@ import type { User, Group, GroupBalance, Expense } from "./api";
 
 // Swipeable Expense Component
 const SwipeableExpense = ({
-  expense,
   isOwner,
   onEdit,
   onDelete,
   children,
 }: {
-  expense: Expense;
   isOwner: boolean;
   onEdit: () => void;
   onDelete: () => void;
@@ -730,32 +728,8 @@ function App() {
     return CURRENCIES.find((c) => c.code === code)?.symbol || code;
   };
 
-  const formatExpenseDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-    if (days === 0) return "Сегодня";
-    if (days === 1) return "Вчера";
-    if (days < 7) return `${days} дн. назад`;
-
-    return date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
-  };
-
-  const getUserName = (
-    userObj: { firstName?: string; username?: string } | undefined
-  ) => {
-    if (!userObj) return "Участник";
-    return userObj.firstName || userObj.username || "Участник";
-  };
-
   const getUserInitials = (name: string) => {
     return name.charAt(0).toUpperCase();
-  };
-
-  const getTotalBalance = () => {
-    return groups.reduce((sum, g) => sum + (g.userBalance || 0), 0);
   };
 
   // Общая сумма: мне должны (положительные балансы)
@@ -1001,7 +975,7 @@ function App() {
                 <div className="group-list archived">
                   {groups
                     .filter((g) => g.id !== selectedGroup)
-                    .map((g, index) => (
+                    .map((g) => (
                       <button
                         key={g.id}
                         className="group-item"
@@ -1621,7 +1595,7 @@ function App() {
                 onClick={
                   showDeleteConfirm === "group"
                     ? handleDeleteGroup
-                    : handleDeleteExpense
+                    : () => handleDeleteExpense()
                 }
               >
                 Удалить
