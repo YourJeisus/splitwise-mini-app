@@ -422,7 +422,11 @@ function App() {
         platform === "android_x" ||
         platform === "ios";
       const isMobileUA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      if ((isMobilePlatform || isMobileUA) && !/Windows|Macintosh|Linux/.test(navigator.userAgent) && wa.requestFullscreen) {
+      if (
+        (isMobilePlatform || isMobileUA) &&
+        !/Windows|Macintosh|Linux/.test(navigator.userAgent) &&
+        wa.requestFullscreen
+      ) {
         wa.requestFullscreen();
       }
 
@@ -648,7 +652,10 @@ function App() {
     setEditingExpense(expense);
     setExpenseTitle(expense.description);
     setExpenseAmount(Number(expense.amount));
-    setSelectedParticipants(expense.shares.map((s) => s.userId));
+    // Берём только участников с owed > 0 (те, между кем делится расход)
+    setSelectedParticipants(
+      expense.shares.filter((s) => Number(s.owed) > 0).map((s) => s.userId)
+    );
     setShowAddExpense(true);
   };
 
