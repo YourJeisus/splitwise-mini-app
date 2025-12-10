@@ -22,6 +22,7 @@ export type Friend = {
 export type Group = {
   id: string;
   name: string;
+  imageUrl?: string;
   currency: string;
   inviteCode?: string;
   createdById?: string;
@@ -30,7 +31,13 @@ export type Group = {
 };
 
 export type GroupBalance = {
-  group: { id: string; name: string; currency: string; inviteCode?: string };
+  group: {
+    id: string;
+    name: string;
+    imageUrl?: string;
+    currency: string;
+    inviteCode?: string;
+  };
   balances: Record<string, number>;
   userNames: Record<string, string>;
   userAvatars?: Record<string, string | null>;
@@ -121,8 +128,26 @@ export const createApiClient = (initData: string) => {
         body: { telegramId },
       }),
     listGroups: () => request<Group[]>("/groups"),
-    createGroup: (payload: { name: string; currency?: string }) =>
-      request<Group>("/groups", { method: "POST", body: payload }),
+    createGroup: async (payload: {
+      name: string;
+      currency?: string;
+      image?: File;
+    }) => {
+      if (payload.image) {
+        const formData = new FormData();
+        formData.append("name", payload.name);
+        if (payload.currency) formData.append("currency", payload.currency);
+        formData.append("image", payload.image);
+        const res = await fetch(`${baseUrl}/groups`, {
+          method: "POST",
+          headers: { "x-telegram-init-data": initData },
+          body: formData,
+        });
+        if (!res.ok) throw new Error(await res.text());
+        return res.json() as Promise<Group>;
+      }
+      return request<Group>("/groups", { method: "POST", body: payload });
+    },
     getGroupByInvite: (inviteCode: string) =>
       request<{
         id: string;
@@ -134,11 +159,28 @@ export const createApiClient = (initData: string) => {
       request<Group>(`/groups/join/${inviteCode}`, { method: "POST" }),
     getGroupBalance: (groupId: string) =>
       request<GroupBalance>(`/groups/${groupId}/balance`),
-    updateGroup: (
+    updateGroup: async (
       groupId: string,
-      payload: { name?: string; currency?: string }
-    ) =>
-      request<Group>(`/groups/${groupId}`, { method: "PATCH", body: payload }),
+      payload: { name?: string; currency?: string; image?: File }
+    ) => {
+      if (payload.image) {
+        const formData = new FormData();
+        if (payload.name) formData.append("name", payload.name);
+        if (payload.currency) formData.append("currency", payload.currency);
+        formData.append("image", payload.image);
+        const res = await fetch(`${baseUrl}/groups/${groupId}`, {
+          method: "PATCH",
+          headers: { "x-telegram-init-data": initData },
+          body: formData,
+        });
+        if (!res.ok) throw new Error(await res.text());
+        return res.json() as Promise<Group>;
+      }
+      return request<Group>(`/groups/${groupId}`, {
+        method: "PATCH",
+        body: payload,
+      });
+    },
     deleteGroup: (groupId: string) =>
       request<{ success: boolean }>(`/groups/${groupId}`, { method: "DELETE" }),
     leaveGroup: (groupId: string) =>

@@ -404,6 +404,8 @@ function App() {
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupCurrency, setNewGroupCurrency] = useState("RUB");
+  const [newGroupImage, setNewGroupImage] = useState<File | null>(null);
+  const [newGroupImagePreview, setNewGroupImagePreview] = useState<string>("");
   const [currencySearch, setCurrencySearch] = useState("");
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
 
@@ -436,6 +438,8 @@ function App() {
   const [showEditGroup, setShowEditGroup] = useState(false);
   const [editGroupName, setEditGroupName] = useState("");
   const [editGroupCurrency, setEditGroupCurrency] = useState("");
+  const [editGroupImage, setEditGroupImage] = useState<File | null>(null);
+  const [editGroupImagePreview, setEditGroupImagePreview] = useState<string>("");
   const [showEditCurrencyDropdown, setShowEditCurrencyDropdown] =
     useState(false);
 
@@ -602,8 +606,14 @@ function App() {
   const handleCreateGroup = async () => {
     if (!newGroupName) return;
     try {
-      await api.createGroup({ name: newGroupName, currency: newGroupCurrency });
+      await api.createGroup({
+        name: newGroupName,
+        currency: newGroupCurrency,
+        image: newGroupImage || undefined,
+      });
       setNewGroupName("");
+      setNewGroupImage(null);
+      setNewGroupImagePreview("");
       setShowCreateGroup(false);
       const updated = await api.listGroups();
       setGroups(updated);
@@ -829,8 +839,11 @@ function App() {
       await api.updateGroup(selectedGroup, {
         name: editGroupName,
         currency: editGroupCurrency,
+        image: editGroupImage || undefined,
       });
       setShowEditGroup(false);
+      setEditGroupImage(null);
+      setEditGroupImagePreview("");
 
       window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
 
@@ -1481,6 +1494,36 @@ function App() {
               </button>
             </div>
 
+            <div className="group-image-upload">
+              <input
+                type="file"
+                id="new-group-image"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setNewGroupImage(file);
+                    setNewGroupImagePreview(URL.createObjectURL(file));
+                  }
+                }}
+              />
+              <label htmlFor="new-group-image" className="image-upload-label">
+                {newGroupImagePreview ? (
+                  <img
+                    src={newGroupImagePreview}
+                    alt="Preview"
+                    className="image-preview"
+                  />
+                ) : (
+                  <div className="image-placeholder">
+                    <span>📷</span>
+                    <span>Добавить фото</span>
+                  </div>
+                )}
+              </label>
+            </div>
+
             <input
               value={newGroupName}
               onChange={(e) => setNewGroupName(e.target.value)}
@@ -1707,6 +1750,36 @@ function App() {
               >
                 ✕
               </button>
+            </div>
+
+            <div className="group-image-upload">
+              <input
+                type="file"
+                id="edit-group-image"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setEditGroupImage(file);
+                    setEditGroupImagePreview(URL.createObjectURL(file));
+                  }
+                }}
+              />
+              <label htmlFor="edit-group-image" className="image-upload-label">
+                {editGroupImagePreview || currentGroup?.imageUrl ? (
+                  <img
+                    src={editGroupImagePreview || currentGroup?.imageUrl}
+                    alt="Preview"
+                    className="image-preview"
+                  />
+                ) : (
+                  <div className="image-placeholder">
+                    <span>📷</span>
+                    <span>Добавить фото</span>
+                  </div>
+                )}
+              </label>
             </div>
 
             <input
