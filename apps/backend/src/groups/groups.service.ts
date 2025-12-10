@@ -14,11 +14,12 @@ export class GroupsService {
 
   async list(userId: string) {
     const memberships = await this.prisma.groupMember.findMany({
-      where: { userId },
+      where: { userId, isActive: true },
       include: {
         group: {
           include: {
             expenses: { include: { shares: true } },
+            settlements: true,
           },
         },
       },
@@ -33,6 +34,15 @@ export class GroupsService {
             userBalance += Number(share.paid) - Number(share.owed);
           }
         });
+      });
+      // Учитываем settlements
+      member.group.settlements.forEach((settlement) => {
+        if (settlement.fromUserId === userId) {
+          userBalance += Number(settlement.amount);
+        }
+        if (settlement.toUserId === userId) {
+          userBalance -= Number(settlement.amount);
+        }
       });
 
       return {
@@ -91,7 +101,18 @@ export class GroupsService {
     const existing = await this.prisma.groupMember.findUnique({
       where: { groupId_userId: { groupId: group.id, userId } },
     });
-    if (existing) throw new ConflictException("Вы уже в этой группе");
+
+    if (existing) {
+      // Если был в группе но вышел — возвращаем
+      if (!existing.isActive) {
+        await this.prisma.groupMember.update({
+          where: { id: existing.id },
+          data: { isActive: true, leftAt: null },
+        });
+        return { id: group.id, name: group.name, currency: group.currency };
+      }
+      throw new ConflictException("Вы уже в этой группе");
+    }
 
     await this.prisma.groupMember.create({
       data: {
@@ -102,6 +123,31 @@ export class GroupsService {
     });
 
     return { id: group.id, name: group.name, currency: group.currency };
+  }
+
+  async leaveGroup(userId: string, groupId: string) {
+    const member = await this.prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId } },
+    });
+
+    if (!member) throw new NotFoundException("Вы не состоите в этой группе");
+    if (!member.isActive)
+      throw new ConflictException("Вы уже вышли из этой группы");
+
+    // Создатель не может выйти из группы
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+    });
+    if (group?.createdById === userId) {
+      throw new ForbiddenException("Создатель не может выйти из группы");
+    }
+
+    await this.prisma.groupMember.update({
+      where: { id: member.id },
+      data: { isActive: false, leftAt: new Date() },
+    });
+
+    return { success: true };
   }
 
   async getBalance(groupId: string) {
@@ -118,12 +164,16 @@ export class GroupsService {
     const userNames: Record<string, string> = {};
     const userAvatars: Record<string, string | null> = {};
     const memberIds: string[] = [];
+    const inactiveMembers: Record<string, boolean> = {};
 
     group.members.forEach((member) => {
       memberIds.push(member.userId);
       userNames[member.userId] =
         member.user.firstName || member.user.username || "Участник";
       userAvatars[member.userId] = member.user.avatarUrl || null;
+      if (!member.isActive) {
+        inactiveMembers[member.userId] = true;
+      }
     });
 
     // Считаем долги между парами: debts[должник][кредитор] = сумма
@@ -228,6 +278,7 @@ export class GroupsService {
       balances,
       userNames,
       userAvatars,
+      inactiveMembers,
       debts: debtsList,
       expensesCount: group.expenses.length,
     };

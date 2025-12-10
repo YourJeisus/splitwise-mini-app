@@ -34,6 +34,7 @@ export type GroupBalance = {
   balances: Record<string, number>;
   userNames: Record<string, string>;
   userAvatars?: Record<string, string | null>;
+  inactiveMembers?: Record<string, boolean>;
   debts: { fromUserId: string; toUserId: string; amount: number }[];
   expensesCount: number;
 };
@@ -140,6 +141,10 @@ export const createApiClient = (initData: string) => {
       request<Group>(`/groups/${groupId}`, { method: "PATCH", body: payload }),
     deleteGroup: (groupId: string) =>
       request<{ success: boolean }>(`/groups/${groupId}`, { method: "DELETE" }),
+    leaveGroup: (groupId: string) =>
+      request<{ success: boolean }>(`/groups/${groupId}/leave`, {
+        method: "POST",
+      }),
     getGroupExpenses: (groupId: string) =>
       request<GroupTransaction[]>(`/expenses/group/${groupId}`),
     createExpense: (payload: {

@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import "./App.css";
 import { createApiClient } from "./api";
-import type { User, Group, GroupBalance, Expense, GroupTransaction } from "./api";
+import type {
+  User,
+  Group,
+  GroupBalance,
+  Expense,
+  GroupTransaction,
+} from "./api";
 
 // Swipeable Expense Component
 const SwipeableExpense = ({
@@ -98,6 +104,97 @@ const SwipeableExpense = ({
               strokeLinecap="round"
             >
               <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+            </svg>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Swipeable Group Component
+const SwipeableGroup = ({
+  canLeave,
+  onLeave,
+  onClick,
+  children,
+}: {
+  canLeave: boolean;
+  onLeave: () => void;
+  onClick: () => void;
+  children: React.ReactNode;
+}) => {
+  const [swipeX, setSwipeX] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const startX = useRef(0);
+  const currentX = useRef(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!canLeave) return;
+    startX.current = e.touches[0].clientX;
+    currentX.current = e.touches[0].clientX;
+    setIsSwiping(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isSwiping || !canLeave) return;
+    currentX.current = e.touches[0].clientX;
+    const diff = startX.current - currentX.current;
+    if (diff > 0) {
+      setSwipeX(Math.min(diff, 60));
+    } else {
+      setSwipeX(0);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!canLeave) return;
+    setIsSwiping(false);
+    if (swipeX > 30) {
+      setSwipeX(60);
+    } else {
+      setSwipeX(0);
+    }
+  };
+
+  const handleClose = () => {
+    setSwipeX(0);
+  };
+
+  return (
+    <div className="swipeable-group-wrapper">
+      <div
+        className="group-item-inner"
+        style={{
+          transform: `translateX(-${swipeX}px)`,
+          transition: isSwiping ? "none" : "transform 0.3s ease",
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onClick={swipeX > 0 ? handleClose : onClick}
+      >
+        {children}
+      </div>
+      {canLeave && (
+        <div
+          className="swipe-actions group-swipe-actions"
+          style={{
+            width: `${swipeX}px`,
+            opacity: swipeX > 20 ? 1 : 0,
+          }}
+        >
+          <button className="swipe-action-btn leave" onClick={onLeave}>
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            >
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
             </svg>
           </button>
         </div>
@@ -770,6 +867,27 @@ function App() {
     }
   };
 
+  const handleLeaveGroup = async (groupId: string) => {
+    try {
+      await api.leaveGroup(groupId);
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
+
+      const updatedGroups = await api.listGroups();
+      setGroups(updatedGroups);
+
+      if (selectedGroup === groupId) {
+        setSelectedGroup("");
+        setGroupBalance(null);
+        setGroupExpenses([]);
+        if (updatedGroups[0]) {
+          await handleSelectGroup(updatedGroups[0].id);
+        }
+      }
+    } catch (error) {
+      alert(`Ошибка: ${(error as Error).message}`);
+    }
+  };
+
   const getCurrencySymbol = (code: string) => {
     return CURRENCIES.find((c) => c.code === code)?.symbol || code;
   };
@@ -920,14 +1038,14 @@ function App() {
       <div className="hero-card compact">
         <div className="hero-row">
           <div className="hero-stat">
-            <span className="hero-stat-label">Вам должны</span>
+            <span className="hero-stat-label">Всего вам должны</span>
             <span className="hero-stat-value positive">
               {getTotalOwedToMeAll().toFixed(0)}{" "}
               {getCurrencySymbol(groups[0]?.currency || "RUB")}
             </span>
           </div>
           <div className="hero-stat">
-            <span className="hero-stat-label">Вы должны</span>
+            <span className="hero-stat-label">Всего вы должны</span>
             <span className="hero-stat-value negative">
               {getTotalIOweAll().toFixed(0)}{" "}
               {getCurrencySymbol(groups[0]?.currency || "RUB")}
@@ -1015,18 +1133,13 @@ function App() {
                   {groups
                     .filter((g) => g.id !== selectedGroup)
                     .map((g) => (
-                      <button
+                      <SwipeableGroup
                         key={g.id}
-                        className="group-item"
+                        canLeave={g.createdById !== user?.id}
+                        onLeave={() => handleLeaveGroup(g.id)}
                         onClick={() => {
                           handleSelectGroup(g.id);
                           setShowArchivedGroups(false);
-                        }}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          if (g.createdById === user?.id) {
-                            handleSelectGroup(g.id).then(() => openEditGroup());
-                          }
                         }}
                       >
                         <div
@@ -1048,7 +1161,7 @@ function App() {
                             {g.userBalance.toFixed(0)}
                           </div>
                         )}
-                      </button>
+                      </SwipeableGroup>
                     ))}
                 </div>
               )}
@@ -1182,7 +1295,10 @@ function App() {
               {/* Все балансы участников */}
               <div className="balance-list">
                 {Object.entries(groupBalance.balances).map(([uid, balance]) => (
-                  <div className="balance-row" key={uid}>
+                  <div
+                    className={`balance-row ${groupBalance.inactiveMembers?.[uid] ? "inactive" : ""}`}
+                    key={uid}
+                  >
                     {groupBalance.userAvatars?.[uid] ? (
                       <img
                         src={groupBalance.userAvatars[uid]!}
@@ -1197,6 +1313,9 @@ function App() {
                     <span className="balance-user-name">
                       {groupBalance.userNames?.[uid] || "Участник"}
                       {uid === user?.id && " (вы)"}
+                      {groupBalance.inactiveMembers?.[uid] && (
+                        <span className="inactive-badge">вышел</span>
+                      )}
                     </span>
                     <span
                       className={`balance-user-amount ${balance >= 0 ? "positive" : "negative"}`}
@@ -1236,20 +1355,27 @@ function App() {
                 <div className="expenses-list">
                   {groupExpenses.map((item) =>
                     item.type === "settlement" ? (
-                      <div key={item.id} className="expense-item settlement-item">
+                      <div
+                        key={item.id}
+                        className="expense-item settlement-item"
+                      >
                         <div className="expense-icon">{Icons.money}</div>
                         <div className="expense-details">
                           <div className="expense-title">Перевод</div>
                           <div className="expense-meta">
-                            {item.fromUser.firstName || item.fromUser.username} →{" "}
-                            {item.toUser.firstName || item.toUser.username}
+                            {item.fromUser.firstName || item.fromUser.username}{" "}
+                            → {item.toUser.firstName || item.toUser.username}
                           </div>
                         </div>
                         <div className="expense-right">
                           <div
                             className={`expense-share-amount ${item.fromUser.id === user?.id ? "negative" : item.toUser.id === user?.id ? "positive" : "muted"}`}
                           >
-                            {item.fromUser.id === user?.id ? "-" : item.toUser.id === user?.id ? "+" : ""}
+                            {item.fromUser.id === user?.id
+                              ? "-"
+                              : item.toUser.id === user?.id
+                                ? "+"
+                                : ""}
                             {Number(item.amount).toFixed(0)}{" "}
                             {getCurrencySymbol(item.currency)}
                           </div>
@@ -1264,7 +1390,9 @@ function App() {
                       >
                         <div className="expense-icon">{Icons.receipt}</div>
                         <div className="expense-details">
-                          <div className="expense-title">{item.description}</div>
+                          <div className="expense-title">
+                            {item.description}
+                          </div>
                           <div className="expense-meta">
                             {getMyExpenseShare(item).payer}{" "}
                             {Number(item.amount).toFixed(0)}{" "}
@@ -1485,16 +1613,18 @@ function App() {
 
             <span className="label">Разделить между:</span>
             <div className="participants-list">
-              {Object.entries(groupBalance.balances).map(([uid]) => (
-                <button
-                  key={uid}
-                  className={`participant-chip ${selectedParticipants.includes(uid) ? "selected" : ""}`}
-                  onClick={() => toggleParticipant(uid)}
-                >
-                  {groupBalance.userNames?.[uid] || "Участник"}
-                  {uid === user?.id && " (вы)"}
-                </button>
-              ))}
+              {Object.entries(groupBalance.balances)
+                .filter(([uid]) => !groupBalance.inactiveMembers?.[uid])
+                .map(([uid]) => (
+                  <button
+                    key={uid}
+                    className={`participant-chip ${selectedParticipants.includes(uid) ? "selected" : ""}`}
+                    onClick={() => toggleParticipant(uid)}
+                  >
+                    {groupBalance.userNames?.[uid] || "Участник"}
+                    {uid === user?.id && " (вы)"}
+                  </button>
+                ))}
             </div>
 
             {selectedParticipants.length > 0 && expenseAmount > 0 && (
@@ -1532,7 +1662,10 @@ function App() {
             <span className="label">Кому вы перевели:</span>
             <div className="participants-list">
               {Object.entries(groupBalance.balances)
-                .filter(([uid]) => uid !== user?.id)
+                .filter(
+                  ([uid]) =>
+                    uid !== user?.id && !groupBalance.inactiveMembers?.[uid]
+                )
                 .map(([uid]) => (
                   <button
                     key={uid}

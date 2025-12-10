@@ -61,11 +61,13 @@ model Group {
 }
 
 model GroupMember {
-  id      String    @id @default(uuid())
-  groupId String
-  userId  String
-  role    GroupRole @default(MEMBER)
-  joinedAt DateTime @default(now())
+  id       String    @id @default(uuid())
+  groupId  String
+  userId   String
+  role     GroupRole @default(MEMBER)
+  isActive Boolean   @default(true)
+  joinedAt DateTime  @default(now())
+  leftAt   DateTime?
 
   group Group @relation(fields: [groupId], references: [id])
   user  User  @relation(fields: [userId], references: [id])
