@@ -49,6 +49,7 @@ enum FriendshipStatus {
 model Group {
   id          String        @id @default(uuid())
   name        String
+  imageUrl    String?
   currency    String        @default("USD")
   inviteCode  String        @unique @default(uuid())
   createdById String

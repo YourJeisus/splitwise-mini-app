@@ -914,10 +914,7 @@ function App() {
     if (!user) return { type: "none" as const, amount: 0, payer: "" };
 
     const myShare = expense.shares.find((s) => s.userId === user.id);
-    const payerShare = expense.shares.find((s) => Number(s.paid) > 0);
-    const payerName =
-      payerShare?.user?.firstName || payerShare?.user?.username || "Кто-то";
-    const isPayer = payerShare?.userId === user.id;
+    const isPayer = myShare && Number(myShare.paid) > 0;
 
     if (isPayer) {
       // Я заплатил — мне должны (сумма owed других участников)
@@ -927,6 +924,9 @@ function App() {
       return { type: "lent" as const, amount: lent, payer: "Вы заплатили" };
     } else if (myShare) {
       // Я не платил, но участвую — я должен
+      const payerShare = expense.shares.find((s) => Number(s.paid) > 0);
+      const payerName =
+        payerShare?.user?.firstName || payerShare?.user?.username || "Кто-то";
       return {
         type: "borrowed" as const,
         amount: Number(myShare.owed),

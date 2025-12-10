@@ -6,11 +6,15 @@ import {
 } from "@nestjs/common";
 import { GroupRole } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { UploadService } from "../upload/upload.service";
 import { CreateGroupDto } from "./dto/create-group.dto";
 
 @Injectable()
 export class GroupsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly uploadService: UploadService
+  ) {}
 
   async list(userId: string) {
     const memberships = await this.prisma.groupMember.findMany({
@@ -48,6 +52,7 @@ export class GroupsService {
       return {
         id: member.group.id,
         name: member.group.name,
+        imageUrl: member.group.imageUrl,
         currency: member.group.currency,
         inviteCode: member.group.inviteCode,
         createdById: member.group.createdById,
@@ -57,7 +62,11 @@ export class GroupsService {
     });
   }
 
-  async create(userId: string, dto: CreateGroupDto) {
+  async create(
+    userId: string,
+    dto: CreateGroupDto,
+    image?: Express.Multer.File
+  ) {
     const group = await this.prisma.group.create({
       data: {
         name: dto.name,
@@ -72,6 +81,19 @@ export class GroupsService {
       },
       include: { members: true },
     });
+
+    if (image) {
+      const imageUrl = await this.uploadService.uploadGroupImage(
+        image,
+        group.id
+      );
+      return this.prisma.group.update({
+        where: { id: group.id },
+        data: { imageUrl },
+        include: { members: true },
+      });
+    }
+
     return group;
   }
 
@@ -87,6 +109,7 @@ export class GroupsService {
     return {
       id: group.id,
       name: group.name,
+      imageUrl: group.imageUrl,
       currency: group.currency,
       membersCount: group._count.members,
     };
@@ -109,7 +132,12 @@ export class GroupsService {
           where: { id: existing.id },
           data: { isActive: true, leftAt: null },
         });
-        return { id: group.id, name: group.name, currency: group.currency };
+        return {
+          id: group.id,
+          name: group.name,
+          imageUrl: group.imageUrl,
+          currency: group.currency,
+        };
       }
       throw new ConflictException("Вы уже в этой группе");
     }
@@ -122,7 +150,12 @@ export class GroupsService {
       },
     });
 
-    return { id: group.id, name: group.name, currency: group.currency };
+    return {
+      id: group.id,
+      name: group.name,
+      imageUrl: group.imageUrl,
+      currency: group.currency,
+    };
   }
 
   async leaveGroup(userId: string, groupId: string) {
@@ -272,6 +305,7 @@ export class GroupsService {
       group: {
         id: group.id,
         name: group.name,
+        imageUrl: group.imageUrl,
         currency: group.currency,
         inviteCode: group.inviteCode,
       },
@@ -287,7 +321,8 @@ export class GroupsService {
   async update(
     userId: string,
     groupId: string,
-    dto: { name?: string; currency?: string }
+    dto: { name?: string; currency?: string },
+    image?: Express.Multer.File
   ) {
     // Проверяем, что пользователь создатель группы
     const group = await this.prisma.group.findUnique({
@@ -301,11 +336,17 @@ export class GroupsService {
       );
     }
 
+    let imageUrl: string | undefined;
+    if (image) {
+      imageUrl = await this.uploadService.uploadGroupImage(image, groupId);
+    }
+
     return this.prisma.group.update({
       where: { id: groupId },
       data: {
         ...(dto.name && { name: dto.name }),
         ...(dto.currency && { currency: dto.currency }),
+        ...(imageUrl && { imageUrl }),
       },
     });
   }

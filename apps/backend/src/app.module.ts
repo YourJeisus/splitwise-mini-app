@@ -8,11 +8,13 @@ import { ExpensesModule } from "./expenses/expenses.module";
 import { SettlementsModule } from "./settlements/settlements.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { BotModule } from "./bot/bot.module";
+import { UploadModule } from "./upload/upload.module";
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    UploadModule,
     AuthModule,
     UsersModule,
     GroupsModule,

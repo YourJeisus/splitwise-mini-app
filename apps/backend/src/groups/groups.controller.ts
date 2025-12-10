@@ -7,7 +7,10 @@ import {
   Patch,
   Delete,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { TelegramAuthGuard } from "../auth/telegram.guard";
 import { AuthUser } from "../common/decorators/auth-user.decorator";
 import { GroupsService } from "./groups.service";
@@ -31,8 +34,13 @@ export class GroupsController {
 
   @UseGuards(TelegramAuthGuard)
   @Post()
-  create(@AuthUser() user: any, @Body() dto: CreateGroupDto) {
-    return this.groupsService.create(user.id, dto);
+  @UseInterceptors(FileInterceptor("image"))
+  create(
+    @AuthUser() user: any,
+    @Body() dto: CreateGroupDto,
+    @UploadedFile() image?: Express.Multer.File
+  ) {
+    return this.groupsService.create(user.id, dto, image);
   }
 
   @UseGuards(TelegramAuthGuard)
@@ -43,12 +51,14 @@ export class GroupsController {
 
   @UseGuards(TelegramAuthGuard)
   @Patch(":id")
+  @UseInterceptors(FileInterceptor("image"))
   update(
     @AuthUser() user: any,
     @Param("id") id: string,
-    @Body() dto: { name?: string; currency?: string }
+    @Body() dto: { name?: string; currency?: string },
+    @UploadedFile() image?: Express.Multer.File
   ) {
-    return this.groupsService.update(user.id, id, dto);
+    return this.groupsService.update(user.id, id, dto, image);
   }
 
   @UseGuards(TelegramAuthGuard)
