@@ -338,6 +338,9 @@ export class GroupsService {
 
     let imageUrl: string | undefined;
     if (image) {
+      if (group.imageUrl) {
+        await this.uploadService.deleteGroupImage(groupId);
+      }
       imageUrl = await this.uploadService.uploadGroupImage(image, groupId);
     }
 
@@ -360,6 +363,11 @@ export class GroupsService {
     if (!group) throw new NotFoundException("Группа не найдена");
     if (group.createdById !== userId) {
       throw new ForbiddenException("Только создатель может удалить группу");
+    }
+
+    // Удаляем изображение из S3
+    if (group.imageUrl) {
+      await this.uploadService.deleteGroupImage(groupId);
     }
 
     // Удаляем все связанные данные

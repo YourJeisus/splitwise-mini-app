@@ -17,6 +17,12 @@ export class UploadService {
     this.bucket = this.configService.get<string>("S3_BUCKET") || "";
     this.cdnUrl = this.configService.get<string>("S3_CDN_URL") || "";
 
+    if (!this.bucket || !this.cdnUrl) {
+      throw new Error(
+        "S3_BUCKET and S3_CDN_URL environment variables are required"
+      );
+    }
+
     this.s3Client = new S3Client({
       region: this.configService.get<string>("S3_REGION") || "auto",
       endpoint: this.configService.get<string>("S3_ENDPOINT"),
