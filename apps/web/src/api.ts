@@ -40,6 +40,7 @@ export type GroupBalance = {
 
 export type Expense = {
   id: string;
+  type: "expense";
   description: string;
   amount: number;
   currency: string;
@@ -61,6 +62,27 @@ export type Expense = {
     };
   }>;
 };
+
+export type Settlement = {
+  id: string;
+  type: "settlement";
+  amount: number;
+  currency: string;
+  note?: string;
+  createdAt: string;
+  fromUser: {
+    id: string;
+    firstName?: string;
+    username?: string;
+  };
+  toUser: {
+    id: string;
+    firstName?: string;
+    username?: string;
+  };
+};
+
+export type GroupTransaction = Expense | Settlement;
 
 export const createApiClient = (initData: string) => {
   const rawUrl =
@@ -119,7 +141,7 @@ export const createApiClient = (initData: string) => {
     deleteGroup: (groupId: string) =>
       request<{ success: boolean }>(`/groups/${groupId}`, { method: "DELETE" }),
     getGroupExpenses: (groupId: string) =>
-      request<Expense[]>(`/expenses/group/${groupId}`),
+      request<GroupTransaction[]>(`/expenses/group/${groupId}`),
     createExpense: (payload: {
       groupId: string;
       description: string;

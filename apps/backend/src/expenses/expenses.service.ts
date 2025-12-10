@@ -28,22 +28,47 @@ export class ExpensesService {
   }
 
   async listByGroup(groupId: string) {
-    return this.prisma.expense.findMany({
-      where: { groupId },
-      include: { 
-        shares: {
-          include: {
-            user: {
-              select: { id: true, firstName: true, username: true }
-            }
-          }
+    const [expenses, settlements] = await Promise.all([
+      this.prisma.expense.findMany({
+        where: { groupId },
+        include: {
+          shares: {
+            include: {
+              user: {
+                select: { id: true, firstName: true, username: true },
+              },
+            },
+          },
+          createdBy: {
+            select: { id: true, firstName: true, username: true },
+          },
         },
-        createdBy: {
-          select: { id: true, firstName: true, username: true }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.settlement.findMany({
+        where: { groupId },
+        include: {
+          fromUser: {
+            select: { id: true, firstName: true, username: true },
+          },
+          toUser: {
+            select: { id: true, firstName: true, username: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+    // Объединяем и сортируем по дате
+    const combined = [
+      ...expenses.map((e) => ({ ...e, type: "expense" as const })),
+      ...settlements.map((s) => ({ ...s, type: "settlement" as const })),
+    ].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    return combined;
   }
 
   async update(

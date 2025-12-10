@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateSettlementDto } from './dto/create-settlement.dto';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreateSettlementDto } from "./dto/create-settlement.dto";
 
 @Injectable()
 export class SettlementsService {
@@ -13,19 +13,18 @@ export class SettlementsService {
         toUserId: dto.toUserId,
         groupId: dto.groupId,
         amount: dto.amount,
-        currency: dto.currency ?? 'USD',
-        note: dto.note
-      }
+        currency: dto.currency ?? "USD",
+        note: dto.note,
+      },
     });
   }
 
   async list(userId: string) {
     return this.prisma.settlement.findMany({
       where: {
-        OR: [{ fromUserId: userId }, { toUserId: userId }]
+        OR: [{ fromUserId: userId }, { toUserId: userId }],
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: "desc" },
     });
   }
 }
-

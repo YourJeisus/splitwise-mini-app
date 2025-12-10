@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import "./App.css";
 import { createApiClient } from "./api";
-import type { User, Group, GroupBalance, Expense } from "./api";
+import type { User, Group, GroupBalance, Expense, GroupTransaction } from "./api";
 
 // Swipeable Expense Component
 const SwipeableExpense = ({
@@ -318,7 +318,7 @@ function App() {
   // Выбранная группа
   const [selectedGroup, setSelectedGroup] = useState("");
   const [groupBalance, setGroupBalance] = useState<GroupBalance | null>(null);
-  const [groupExpenses, setGroupExpenses] = useState<Expense[]>([]);
+  const [groupExpenses, setGroupExpenses] = useState<GroupTransaction[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>("balance");
 
   // Расходы
@@ -1234,64 +1234,84 @@ function App() {
                 </div>
               ) : (
                 <div className="expenses-list">
-                  {groupExpenses.map((expense) => (
-                    <SwipeableExpense
-                      key={expense.id}
-                      isOwner={expense.createdBy.id === user?.id}
-                      onEdit={() => handleEditExpense(expense)}
-                      onDelete={() => handleDeleteExpense(expense.id)}
-                    >
-                      <div className="expense-icon">{Icons.receipt}</div>
-                      <div className="expense-details">
-                        <div className="expense-title">
-                          {expense.description}
+                  {groupExpenses.map((item) =>
+                    item.type === "settlement" ? (
+                      <div key={item.id} className="expense-item settlement-item">
+                        <div className="expense-icon">{Icons.money}</div>
+                        <div className="expense-details">
+                          <div className="expense-title">Перевод</div>
+                          <div className="expense-meta">
+                            {item.fromUser.firstName || item.fromUser.username} →{" "}
+                            {item.toUser.firstName || item.toUser.username}
+                          </div>
                         </div>
-                        <div className="expense-meta">
-                          {getMyExpenseShare(expense).payer}{" "}
-                          {Number(expense.amount).toFixed(0)}{" "}
-                          {getCurrencySymbol(expense.currency)}
+                        <div className="expense-right">
+                          <div
+                            className={`expense-share-amount ${item.fromUser.id === user?.id ? "negative" : item.toUser.id === user?.id ? "positive" : "muted"}`}
+                          >
+                            {item.fromUser.id === user?.id ? "-" : item.toUser.id === user?.id ? "+" : ""}
+                            {Number(item.amount).toFixed(0)}{" "}
+                            {getCurrencySymbol(item.currency)}
+                          </div>
                         </div>
                       </div>
-                      <div className="expense-right">
-                        {(() => {
-                          const share = getMyExpenseShare(expense);
-                          if (share.type === "lent" && share.amount > 0) {
+                    ) : (
+                      <SwipeableExpense
+                        key={item.id}
+                        isOwner={item.createdBy.id === user?.id}
+                        onEdit={() => handleEditExpense(item)}
+                        onDelete={() => handleDeleteExpense(item.id)}
+                      >
+                        <div className="expense-icon">{Icons.receipt}</div>
+                        <div className="expense-details">
+                          <div className="expense-title">{item.description}</div>
+                          <div className="expense-meta">
+                            {getMyExpenseShare(item).payer}{" "}
+                            {Number(item.amount).toFixed(0)}{" "}
+                            {getCurrencySymbol(item.currency)}
+                          </div>
+                        </div>
+                        <div className="expense-right">
+                          {(() => {
+                            const share = getMyExpenseShare(item);
+                            if (share.type === "lent" && share.amount > 0) {
+                              return (
+                                <>
+                                  <div className="expense-share-label">
+                                    вам должны
+                                  </div>
+                                  <div className="expense-share-amount positive">
+                                    {share.amount.toFixed(0)}{" "}
+                                    {getCurrencySymbol(item.currency)}
+                                  </div>
+                                </>
+                              );
+                            } else if (
+                              share.type === "borrowed" &&
+                              share.amount > 0
+                            ) {
+                              return (
+                                <>
+                                  <div className="expense-share-label">
+                                    вы должны
+                                  </div>
+                                  <div className="expense-share-amount negative">
+                                    {share.amount.toFixed(0)}{" "}
+                                    {getCurrencySymbol(item.currency)}
+                                  </div>
+                                </>
+                              );
+                            }
                             return (
-                              <>
-                                <div className="expense-share-label">
-                                  вам должны
-                                </div>
-                                <div className="expense-share-amount positive">
-                                  {share.amount.toFixed(0)}{" "}
-                                  {getCurrencySymbol(expense.currency)}
-                                </div>
-                              </>
+                              <div className="expense-share-amount muted">
+                                не участвуете
+                              </div>
                             );
-                          } else if (
-                            share.type === "borrowed" &&
-                            share.amount > 0
-                          ) {
-                            return (
-                              <>
-                                <div className="expense-share-label">
-                                  вы должны
-                                </div>
-                                <div className="expense-share-amount negative">
-                                  {share.amount.toFixed(0)}{" "}
-                                  {getCurrencySymbol(expense.currency)}
-                                </div>
-                              </>
-                            );
-                          }
-                          return (
-                            <div className="expense-share-amount muted">
-                              не участвуете
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </SwipeableExpense>
-                  ))}
+                          })()}
+                        </div>
+                      </SwipeableExpense>
+                    )
+                  )}
                 </div>
               )}
             </section>
