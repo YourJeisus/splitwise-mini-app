@@ -439,7 +439,8 @@ function App() {
   const [editGroupName, setEditGroupName] = useState("");
   const [editGroupCurrency, setEditGroupCurrency] = useState("");
   const [editGroupImage, setEditGroupImage] = useState<File | null>(null);
-  const [editGroupImagePreview, setEditGroupImagePreview] = useState<string>("");
+  const [editGroupImagePreview, setEditGroupImagePreview] =
+    useState<string>("");
   const [showEditCurrencyDropdown, setShowEditCurrencyDropdown] =
     useState(false);
 
@@ -829,6 +830,8 @@ function App() {
     if (!currentGroup) return;
     setEditGroupName(currentGroup.name);
     setEditGroupCurrency(currentGroup.currency);
+    setEditGroupImage(null);
+    setEditGroupImagePreview("");
     setShowEditGroup(true);
   };
 
@@ -1104,13 +1107,21 @@ function App() {
                 }
               }}
             >
-              <div
-                className={`group-item-icon ${getGroupColor(groups.findIndex((g) => g.id === currentGroup.id))}`}
-              >
-                {getGroupIcon(
-                  groups.findIndex((g) => g.id === currentGroup.id)
-                )}
-              </div>
+              {currentGroup.imageUrl ? (
+                <img
+                  src={currentGroup.imageUrl}
+                  alt={currentGroup.name}
+                  className="group-item-image"
+                />
+              ) : (
+                <div
+                  className={`group-item-icon ${getGroupColor(groups.findIndex((g) => g.id === currentGroup.id))}`}
+                >
+                  {getGroupIcon(
+                    groups.findIndex((g) => g.id === currentGroup.id)
+                  )}
+                </div>
+              )}
               <div className="group-item-content">
                 <div className="group-item-name">{currentGroup.name}</div>
                 <div className="group-item-meta">
@@ -1155,11 +1166,19 @@ function App() {
                           setShowArchivedGroups(false);
                         }}
                       >
-                        <div
-                          className={`group-item-icon ${getGroupColor(groups.indexOf(g))}`}
-                        >
-                          {getGroupIcon(groups.indexOf(g))}
-                        </div>
+                        {g.imageUrl ? (
+                          <img
+                            src={g.imageUrl}
+                            alt={g.name}
+                            className="group-item-image"
+                          />
+                        ) : (
+                          <div
+                            className={`group-item-icon ${getGroupColor(groups.indexOf(g))}`}
+                          >
+                            {getGroupIcon(groups.indexOf(g))}
+                          </div>
+                        )}
                         <div className="group-item-content">
                           <div className="group-item-name">{g.name}</div>
                           <div className="group-item-meta">
@@ -1481,14 +1500,22 @@ function App() {
       {showCreateGroup && (
         <div
           className="modal-overlay"
-          onClick={() => setShowCreateGroup(false)}
+          onClick={() => {
+            setShowCreateGroup(false);
+            setNewGroupImage(null);
+            setNewGroupImagePreview("");
+          }}
         >
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Новая группа</h3>
               <button
                 className="close-btn"
-                onClick={() => setShowCreateGroup(false)}
+                onClick={() => {
+            setShowCreateGroup(false);
+            setNewGroupImage(null);
+            setNewGroupImagePreview("");
+          }}
               >
                 ✕
               </button>
@@ -1740,13 +1767,21 @@ function App() {
 
       {/* Edit Group Modal */}
       {showEditGroup && currentGroup && (
-        <div className="modal-overlay" onClick={() => setShowEditGroup(false)}>
+        <div className="modal-overlay" onClick={() => {
+              setShowEditGroup(false);
+              setEditGroupImage(null);
+              setEditGroupImagePreview("");
+            }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Редактировать группу</h3>
               <button
                 className="close-btn"
-                onClick={() => setShowEditGroup(false)}
+                onClick={() => {
+              setShowEditGroup(false);
+              setEditGroupImage(null);
+              setEditGroupImagePreview("");
+            }}
               >
                 ✕
               </button>

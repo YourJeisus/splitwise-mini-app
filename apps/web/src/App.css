@@ -534,6 +534,15 @@
   flex-shrink: 0;
 }
 
+.group-item-image {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  margin-right: 14px;
+  flex-shrink: 0;
+}
+
 .group-item-icon.yellow {
   background: var(--accent-yellow);
 }
