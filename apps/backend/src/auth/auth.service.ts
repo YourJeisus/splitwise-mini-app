@@ -2,13 +2,46 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 import { extractTelegramUser, isValidTelegramInitData } from "./telegram.util";
+import { Telegraf } from "telegraf";
 
 @Injectable()
 export class AuthService {
+  private bot: Telegraf | null = null;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService
-  ) {}
+  ) {
+    const token = this.config.get<string>("BOT_TOKEN");
+    if (token) {
+      this.bot = new Telegraf(token);
+    }
+  }
+
+  private scheduleHomeScreenReminder(telegramId: string) {
+    setTimeout(
+      async () => {
+        try {
+          const user = await this.prisma.user.findUnique({
+            where: { telegramId },
+          });
+          if (user && !user.homeScreenReminderSent && this.bot) {
+            await this.bot.telegram.sendMessage(
+              telegramId,
+              "📱 Добавьте приложение на главный экран смартфона — инструкция есть в разделе info бота."
+            );
+            await this.prisma.user.update({
+              where: { telegramId },
+              data: { homeScreenReminderSent: true },
+            });
+          }
+        } catch (e) {
+          // ignore
+        }
+      },
+      10 * 60 * 1000
+    ); // 10 минут
+  }
 
   async verify(initData: string) {
     const botToken = this.config.get<string>("BOT_TOKEN");
@@ -56,6 +89,12 @@ export class AuthService {
     }
 
     const telegramId = String(userPayload.id);
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { telegramId },
+    });
+    const isFirstVisit = !existingUser;
+
     const user = await this.prisma.user.upsert({
       where: { telegramId },
       update: {
@@ -70,8 +109,13 @@ export class AuthService {
         lastName: userPayload.last_name,
         username: userPayload.username,
         avatarUrl: userPayload.photo_url,
+        firstVisitAt: new Date(),
       },
     });
+
+    if (isFirstVisit) {
+      this.scheduleHomeScreenReminder(telegramId);
+    }
 
     return user;
   }

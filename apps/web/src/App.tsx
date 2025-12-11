@@ -452,6 +452,18 @@ function App() {
     null
   );
 
+  // Подтверждение выхода из группы
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState<string | null>(null);
+
+  // Статусы загрузки фото и сохранения
+  const [imageUploadStatus, setImageUploadStatus] = useState<
+    "idle" | "uploading" | "done"
+  >("idle");
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  // Тост подсказка для добавления на главный экран
+  const [showHomeScreenTip, setShowHomeScreenTip] = useState(false);
+
   const api = useMemo(
     () => createApiClient(initData || import.meta.env.VITE_TG_INIT_DATA || ""),
     [initData]
@@ -606,6 +618,7 @@ function App() {
 
   const handleCreateGroup = async () => {
     if (!newGroupName) return;
+    const isFirstGroup = groups.length === 0;
     try {
       await api.createGroup({
         name: newGroupName,
@@ -616,12 +629,19 @@ function App() {
       setNewGroupImage(null);
       setNewGroupImagePreview("");
       setShowCreateGroup(false);
+      setImageUploadStatus("idle");
       const updated = await api.listGroups();
       setGroups(updated);
       if (updated[0]) {
         await handleSelectGroup(updated[0].id);
       }
       window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
+
+      // Показываем подсказку после создания первой группы
+      if (isFirstGroup) {
+        setShowHomeScreenTip(true);
+        setTimeout(() => setShowHomeScreenTip(false), 8000);
+      }
     } catch (error) {
       alert(`Ошибка: ${(error as Error).message}`);
     }
@@ -839,14 +859,12 @@ function App() {
     if (!selectedGroup || !editGroupName) return;
 
     try {
+      setSavingSettings(true);
       await api.updateGroup(selectedGroup, {
         name: editGroupName,
         currency: editGroupCurrency,
         image: editGroupImage || undefined,
       });
-      setShowEditGroup(false);
-      setEditGroupImage(null);
-      setEditGroupImagePreview("");
 
       window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
 
@@ -856,8 +874,16 @@ function App() {
       ]);
       setGroupBalance(balance);
       setGroups(updatedGroups);
+
+      alert("Настройки сохранены");
+      setShowEditGroup(false);
+      setEditGroupImage(null);
+      setEditGroupImagePreview("");
+      setImageUploadStatus("idle");
     } catch (error) {
       alert(`Ошибка: ${(error as Error).message}`);
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -1160,7 +1186,7 @@ function App() {
                       <SwipeableGroup
                         key={g.id}
                         canLeave={g.createdById !== user?.id}
-                        onLeave={() => handleLeaveGroup(g.id)}
+                        onLeave={() => setShowLeaveConfirm(g.id)}
                         onClick={() => {
                           handleSelectGroup(g.id);
                           setShowArchivedGroups(false);
@@ -1504,6 +1530,7 @@ function App() {
             setShowCreateGroup(false);
             setNewGroupImage(null);
             setNewGroupImagePreview("");
+            setImageUploadStatus("idle");
           }}
         >
           <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -1512,10 +1539,11 @@ function App() {
               <button
                 className="close-btn"
                 onClick={() => {
-            setShowCreateGroup(false);
-            setNewGroupImage(null);
-            setNewGroupImagePreview("");
-          }}
+                  setShowCreateGroup(false);
+                  setNewGroupImage(null);
+                  setNewGroupImagePreview("");
+                  setImageUploadStatus("idle");
+                }}
               >
                 ✕
               </button>
@@ -1530,8 +1558,10 @@ function App() {
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
+                    setImageUploadStatus("uploading");
                     setNewGroupImage(file);
                     setNewGroupImagePreview(URL.createObjectURL(file));
+                    setTimeout(() => setImageUploadStatus("done"), 500);
                   }
                 }}
               />
@@ -1549,6 +1579,12 @@ function App() {
                   </div>
                 )}
               </label>
+              {imageUploadStatus === "uploading" && (
+                <div className="image-status">Фото загружается...</div>
+              )}
+              {imageUploadStatus === "done" && (
+                <div className="image-status success">Фото обновлено</div>
+              )}
             </div>
 
             <input
@@ -1767,21 +1803,26 @@ function App() {
 
       {/* Edit Group Modal */}
       {showEditGroup && currentGroup && (
-        <div className="modal-overlay" onClick={() => {
-              setShowEditGroup(false);
-              setEditGroupImage(null);
-              setEditGroupImagePreview("");
-            }}>
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            setShowEditGroup(false);
+            setEditGroupImage(null);
+            setEditGroupImagePreview("");
+            setImageUploadStatus("idle");
+          }}
+        >
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Редактировать группу</h3>
               <button
                 className="close-btn"
                 onClick={() => {
-              setShowEditGroup(false);
-              setEditGroupImage(null);
-              setEditGroupImagePreview("");
-            }}
+                  setShowEditGroup(false);
+                  setEditGroupImage(null);
+                  setEditGroupImagePreview("");
+                  setImageUploadStatus("idle");
+                }}
               >
                 ✕
               </button>
@@ -1796,8 +1837,10 @@ function App() {
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
+                    setImageUploadStatus("uploading");
                     setEditGroupImage(file);
                     setEditGroupImagePreview(URL.createObjectURL(file));
+                    setTimeout(() => setImageUploadStatus("done"), 500);
                   }
                 }}
               />
@@ -1815,6 +1858,12 @@ function App() {
                   </div>
                 )}
               </label>
+              {imageUploadStatus === "uploading" && (
+                <div className="image-status">Фото загружается...</div>
+              )}
+              {imageUploadStatus === "done" && (
+                <div className="image-status success">Фото обновлено</div>
+              )}
             </div>
 
             <input
@@ -1909,6 +1958,45 @@ function App() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Leave Group Confirmation Modal */}
+      {showLeaveConfirm && (
+        <div className="modal-overlay">
+          <div className="modal confirm-modal">
+            <div className="confirm-icon">🚪</div>
+            <h3>Выход из группы</h3>
+            <p>Вы уверены, что хотите выйти из этой группы?</p>
+            <div className="confirm-buttons">
+              <button
+                className="decline-btn"
+                onClick={() => setShowLeaveConfirm(null)}
+              >
+                Отмена
+              </button>
+              <button
+                className="danger-btn"
+                onClick={() => {
+                  handleLeaveGroup(showLeaveConfirm);
+                  setShowLeaveConfirm(null);
+                }}
+              >
+                Выйти
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Home Screen Tip Toast */}
+      {showHomeScreenTip && (
+        <div className="toast-tip" onClick={() => setShowHomeScreenTip(false)}>
+          <span>📱</span>
+          <span>
+            Добавьте приложение на главный экран — инструкция в разделе info
+            бота
+          </span>
         </div>
       )}
     </div>

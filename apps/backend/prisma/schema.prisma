@@ -14,6 +14,8 @@ model User {
   firstName    String?
   lastName     String?
   avatarUrl    String?
+  firstVisitAt DateTime?
+  homeScreenReminderSent Boolean @default(false)
   friendshipsSent Friendship[] @relation("FriendFrom")
   friendshipsRecv Friendship[] @relation("FriendTo")
   groupMembers GroupMember[]

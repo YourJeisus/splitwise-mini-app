@@ -1515,8 +1515,20 @@ input::placeholder {
 /* ===== GROUP IMAGE UPLOAD ===== */
 .group-image-upload {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
   margin-bottom: 16px;
+}
+
+.image-status {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.image-status.success {
+  color: var(--positive);
 }
 
 .image-upload-label {
@@ -1585,4 +1597,42 @@ input::placeholder {
 ::-webkit-scrollbar-thumb {
   background: var(--text-muted);
   border-radius: 4px;
+}
+
+/* ===== TOAST TIP ===== */
+.toast-tip {
+  position: fixed;
+  bottom: 24px;
+  left: 16px;
+  right: 16px;
+  max-width: 448px;
+  margin: 0 auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease-out;
+  cursor: pointer;
+  z-index: 1000;
+}
+
+.toast-tip span:first-child {
+  font-size: 18px;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
