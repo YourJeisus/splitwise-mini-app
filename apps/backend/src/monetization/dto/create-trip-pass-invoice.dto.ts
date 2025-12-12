@@ -1,4 +1,4 @@
-import { IsBoolean, IsString } from "class-validator";
+import { IsBoolean, IsOptional, IsString } from "class-validator";
 
 export class CreateTripPassInvoiceDto {
   @IsString()
@@ -6,6 +6,10 @@ export class CreateTripPassInvoiceDto {
 
   @IsBoolean()
   splitCost!: boolean;
+
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
 }
 
 

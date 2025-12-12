@@ -37,6 +37,15 @@ export class GroupsService {
   }
 
   private async assertActiveGroupsLimit(userId: string) {
+    // Check if user has GodMode enabled
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { godModeEnabled: true },
+    });
+    if (user?.godModeEnabled) {
+      return; // GodMode bypasses limit
+    }
+
     const activeCount = await this.getActiveGroupsCount(userId);
     if (activeCount >= ACTIVE_GROUPS_LIMIT) {
       throw new ForbiddenException(ACTIVE_GROUPS_LIMIT_MESSAGE);

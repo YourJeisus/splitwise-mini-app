@@ -1,8 +1,22 @@
 import { PrismaClient, FriendshipStatus, GroupRole } from "@prisma/client";
+import * as bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  // Seed admin user for admin panel
+  const adminPassword = await bcrypt.hash("admin123", 10);
+  await prisma.adminUser.upsert({
+    where: { email: "admin@example.com" },
+    update: {},
+    create: {
+      email: "admin@example.com",
+      passwordHash: adminPassword,
+      role: "OWNER",
+      enabled: true,
+    },
+  });
+  console.log("Admin user seeded: admin@example.com / admin123");
   const alice = await prisma.user.upsert({
     where: { telegramId: "1001" },
     update: {},

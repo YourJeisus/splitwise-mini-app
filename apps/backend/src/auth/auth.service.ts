@@ -109,6 +109,7 @@ export class AuthService {
         lastName: userPayload.last_name,
         username: userPayload.username,
         avatarUrl: userPayload.photo_url,
+        lastActiveAt: new Date(),
       },
       create: {
         telegramId,
@@ -117,6 +118,7 @@ export class AuthService {
         username: userPayload.username,
         avatarUrl: userPayload.photo_url,
         firstVisitAt: new Date(),
+        lastActiveAt: new Date(),
       },
     });
 

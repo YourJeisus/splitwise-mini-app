@@ -10,6 +10,7 @@ import type {
   TripSummary,
   Receipt,
 } from "./api";
+import { AdminApp } from "./admin/AdminApp";
 
 // Swipeable Expense Component
 const SwipeableExpense = ({
@@ -432,6 +433,17 @@ const Icons = {
 };
 
 function App() {
+  const isAdminPath = window.location.pathname.startsWith("/admin");
+
+  // Render admin panel if on /admin path (before any hooks for clean early return)
+  if (isAdminPath) {
+    return <AdminApp />;
+  }
+
+  return <MainApp />;
+}
+
+function MainApp() {
   const [initData, setInitData] = useState("");
   const [user, setUser] = useState<User | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -598,7 +610,9 @@ function App() {
 
   const devSwitcherAutoEnabled = useMemo(() => {
     try {
-      return window.location.hostname !== "popolam.up.railway.app";
+      // Only auto-enable on localhost
+      const hostname = window.location.hostname;
+      return hostname === "localhost" || hostname === "127.0.0.1";
     } catch {
       return false;
     }

@@ -46,6 +46,37 @@ export class ExpensesService {
   }
 
   /**
+   * Проверяет, есть ли у пользователя доступ к Trip Pass функциям:
+   * - активный Trip Pass для группы
+   * - или GodMode включён
+   */
+  private async hasFeatureAccess(
+    userId: string,
+    groupId: string
+  ): Promise<boolean> {
+    // Check GodMode first
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { godModeEnabled: true },
+    });
+    if (user?.godModeEnabled) {
+      return true;
+    }
+
+    // Check active Trip Pass
+    const now = new Date();
+    const entitlement = await this.prisma.entitlement.findFirst({
+      where: {
+        groupId,
+        productCode: TRIP_PASS_PRODUCT_CODE,
+        endsAt: { gt: now },
+      },
+      select: { id: true },
+    });
+    return !!entitlement;
+  }
+
+  /**
    * Рассчитывает предварительное распределение owed для чека.
    * Выбранные позиции — точно по claims, нераспределённые — поровну между всеми.
    */
@@ -141,16 +172,8 @@ export class ExpensesService {
       if (!dto.groupId) {
         throw new BadRequestException("Мультивалюта доступна только в группе");
       }
-      const now = new Date();
-      const entitlement = await this.prisma.entitlement.findFirst({
-        where: {
-          groupId: dto.groupId,
-          productCode: TRIP_PASS_PRODUCT_CODE,
-          endsAt: { gt: now },
-        },
-        select: { id: true },
-      });
-      if (!entitlement) {
+      const hasAccess = await this.hasFeatureAccess(userId, dto.groupId);
+      if (!hasAccess) {
         throw new BadRequestException(
           "Мультивалютные траты доступны с Trip Pass"
         );
@@ -386,16 +409,8 @@ export class ExpensesService {
     if (group.closedAt) {
       throw new BadRequestException("Группа закрыта");
     }
-    const now = new Date();
-    const entitlement = await this.prisma.entitlement.findFirst({
-      where: {
-        groupId,
-        productCode: TRIP_PASS_PRODUCT_CODE,
-        endsAt: { gt: now },
-      },
-      select: { id: true },
-    });
-    if (!entitlement) {
+    const hasAccess = await this.hasFeatureAccess(userId, groupId);
+    if (!hasAccess) {
       throw new ForbiddenException("Сканирование чеков доступно с Trip Pass");
     }
 
@@ -742,18 +757,13 @@ NO markdown, NO explanation, ONLY JSON.`;
     if (!group) throw new NotFoundException("Группа не найдена");
     if (group.closedAt) throw new BadRequestException("Группа закрыта");
 
-    // Проверяем Trip Pass
-    const now = new Date();
-    const entitlement = await this.prisma.entitlement.findFirst({
-      where: {
-        groupId: dto.groupId,
-        productCode: TRIP_PASS_PRODUCT_CODE,
-        endsAt: { gt: now },
-      },
-    });
-    if (!entitlement) {
+    // Проверяем Trip Pass или GodMode
+    const hasAccess = await this.hasFeatureAccess(userId, dto.groupId);
+    if (!hasAccess) {
       throw new ForbiddenException("Чеки доступны с Trip Pass");
     }
+
+    const now = new Date();
 
     // Проверяем что paidByUserId — участник группы
     const memberIds = group.members.map((m) => m.userId);

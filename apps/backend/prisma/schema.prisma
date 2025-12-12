@@ -15,6 +15,8 @@ model User {
   lastName     String?
   avatarUrl    String?
   firstVisitAt DateTime?
+  lastActiveAt DateTime?
+  godModeEnabled Boolean      @default(false)
   homeScreenReminderSent Boolean @default(false)
   friendshipsSent Friendship[] @relation("FriendFrom")
   friendshipsRecv Friendship[] @relation("FriendTo")
@@ -139,29 +141,71 @@ model Product {
   active                   Boolean @default(true)
   priceBySettlementCurrency Json
 
-  purchases Purchase[]
+  purchases    Purchase[]
   entitlements Entitlement[]
+  pricing      ProductPricing?
+  promoCodes   PromoCode[]
+}
+
+model ProductPricing {
+  id                              String              @id @default(uuid())
+  productCode                     String              @unique
+  globalDiscountType              DiscountType        @default(NONE)
+  percentOff                      Int?
+  starsPriceOverride              Int?
+  priceBySettlementCurrencyOverride Json?
+  enabled                         Boolean             @default(false)
+  updatedAt                       DateTime            @updatedAt
+
+  product Product @relation(fields: [productCode], references: [code])
+}
+
+model PromoCode {
+  id                              String       @id @default(uuid())
+  code                            String       @unique
+  productCode                     String
+  discountType                    DiscountType @default(PERCENT)
+  percentOff                      Int?
+  starsPriceOverride              Int?
+  priceBySettlementCurrencyOverride Json?
+  enabled                         Boolean      @default(true)
+  maxRedemptions                  Int?
+  redeemedCount                   Int          @default(0)
+  createdAt                       DateTime     @default(now())
+  updatedAt                       DateTime     @updatedAt
+
+  product Product @relation(fields: [productCode], references: [code])
+
+  @@index([productCode])
+}
+
+enum DiscountType {
+  NONE
+  PERCENT
+  FIXED_OVERRIDE
 }
 
 model Purchase {
-  id                     String         @id @default(uuid())
-  productCode            String
-  groupId                String
-  buyerUserId            String
-  invoicePayload         String         @unique
-  starsAmount            Int
-  currency               String
-  status                 PurchaseStatus @default(CREATED)
-  telegramPaymentChargeId String?       @unique
-  splitCost              Boolean        @default(false)
-  settlementFeeAmount    Decimal        @db.Decimal(12, 2)
-  settlementCurrency     String
-  createdAt              DateTime       @default(now())
-  paidAt                 DateTime?
+  id                      String         @id @default(uuid())
+  productCode             String
+  groupId                 String
+  buyerUserId             String
+  invoicePayload          String         @unique
+  starsAmount             Int
+  currency                String
+  status                  PurchaseStatus @default(CREATED)
+  telegramPaymentChargeId String?        @unique
+  splitCost               Boolean        @default(false)
+  settlementFeeAmount     Decimal        @db.Decimal(12, 2)
+  settlementCurrency      String
+  appliedPromoCode        String?
+  pricingSnapshot         Json?
+  createdAt               DateTime       @default(now())
+  paidAt                  DateTime?
 
-  product Product @relation(fields: [productCode], references: [code])
-  group   Group   @relation(fields: [groupId], references: [id])
-  buyer   User    @relation(fields: [buyerUserId], references: [id])
+  product     Product      @relation(fields: [productCode], references: [code])
+  group       Group        @relation(fields: [groupId], references: [id])
+  buyer       User         @relation(fields: [buyerUserId], references: [id])
   entitlement Entitlement?
 
   @@index([groupId])
@@ -277,5 +321,47 @@ enum ReceiptStatus {
   PENDING      // Ожидает распределения
   DISTRIBUTED  // Полностью распределён
   FINALIZED    // Закрыт, расчёты применены
+}
+
+// ============ ADMIN PANEL ============
+
+model AdminUser {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  role         AdminRole @default(READ_ONLY)
+  enabled      Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  auditLogs AdminAuditLog[]
+}
+
+enum AdminRole {
+  OWNER
+  ADMIN
+  SUPPORT
+  READ_ONLY
+}
+
+model AdminAuditLog {
+  id          String   @id @default(uuid())
+  adminId     String
+  adminRole   AdminRole
+  action      String
+  targetType  String
+  targetId    String?
+  before      Json?
+  after       Json?
+  reason      String
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  admin AdminUser @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
 }
 

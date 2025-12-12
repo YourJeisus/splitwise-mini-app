@@ -22,6 +22,17 @@ function round2(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
+interface PricingSnapshot {
+  baseStarsPrice: number;
+  baseSettlementFeeAmount: number;
+  effectiveStarsPrice: number;
+  effectiveSettlementFeeAmount: number;
+  discountType: 'NONE' | 'PERCENT' | 'FIXED_OVERRIDE';
+  discountSource: 'none' | 'promo' | 'global';
+  percentOff?: number;
+  promoCode?: string;
+}
+
 @Injectable()
 export class MonetizationService {
   private bot: Telegraf | null = null;
@@ -60,10 +71,99 @@ export class MonetizationService {
     return round2(value);
   }
 
+  private async calculateEffectivePricing(params: {
+    product: {
+      code: string;
+      starsPrice: number;
+      priceBySettlementCurrency: any;
+    };
+    settlementCurrency: string;
+    promoCode?: string;
+  }): Promise<PricingSnapshot> {
+    const baseStarsPrice = params.product.starsPrice;
+    const baseSettlementFeeAmount = this.getSettlementFeeAmountForCurrency(
+      params.product,
+      params.settlementCurrency
+    );
+
+    let discountType: PricingSnapshot['discountType'] = 'NONE';
+    let discountSource: PricingSnapshot['discountSource'] = 'none';
+    let percentOff: number | undefined;
+    let effectiveStarsPrice = baseStarsPrice;
+    let effectiveSettlementFeeAmount = baseSettlementFeeAmount;
+    let appliedPromoCode: string | undefined;
+
+    // 1. Если передан promoCode — пробуем его применить
+    if (params.promoCode) {
+      const promo = await this.prisma.promoCode.findUnique({
+        where: { code: params.promoCode },
+      });
+      if (promo && promo.enabled && promo.productCode === params.product.code) {
+        // Проверяем лимит использований
+        if (!promo.maxRedemptions || promo.redeemedCount < promo.maxRedemptions) {
+          discountSource = 'promo';
+          discountType = promo.discountType;
+          appliedPromoCode = promo.code;
+
+          if (promo.discountType === 'PERCENT' && promo.percentOff) {
+            percentOff = promo.percentOff;
+            effectiveStarsPrice = Math.max(1, Math.round(baseStarsPrice * (100 - promo.percentOff) / 100));
+            effectiveSettlementFeeAmount = round2(baseSettlementFeeAmount * (100 - promo.percentOff) / 100);
+          } else if (promo.discountType === 'FIXED_OVERRIDE') {
+            if (promo.starsPriceOverride != null) {
+              effectiveStarsPrice = promo.starsPriceOverride;
+            }
+            const overrideMap = (promo.priceBySettlementCurrencyOverride ?? {}) as Record<string, number>;
+            if (overrideMap[params.settlementCurrency] != null) {
+              effectiveSettlementFeeAmount = round2(overrideMap[params.settlementCurrency]);
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Если промокод не применён, проверяем глобальную скидку
+    if (discountSource === 'none') {
+      const pricing = await this.prisma.productPricing.findUnique({
+        where: { productCode: params.product.code },
+      });
+      if (pricing && pricing.enabled && pricing.globalDiscountType !== 'NONE') {
+        discountSource = 'global';
+        discountType = pricing.globalDiscountType;
+
+        if (pricing.globalDiscountType === 'PERCENT' && pricing.percentOff) {
+          percentOff = pricing.percentOff;
+          effectiveStarsPrice = Math.max(1, Math.round(baseStarsPrice * (100 - pricing.percentOff) / 100));
+          effectiveSettlementFeeAmount = round2(baseSettlementFeeAmount * (100 - pricing.percentOff) / 100);
+        } else if (pricing.globalDiscountType === 'FIXED_OVERRIDE') {
+          if (pricing.starsPriceOverride != null) {
+            effectiveStarsPrice = pricing.starsPriceOverride;
+          }
+          const overrideMap = (pricing.priceBySettlementCurrencyOverride ?? {}) as Record<string, number>;
+          if (overrideMap[params.settlementCurrency] != null) {
+            effectiveSettlementFeeAmount = round2(overrideMap[params.settlementCurrency]);
+          }
+        }
+      }
+    }
+
+    return {
+      baseStarsPrice,
+      baseSettlementFeeAmount,
+      effectiveStarsPrice,
+      effectiveSettlementFeeAmount,
+      discountType,
+      discountSource,
+      percentOff,
+      promoCode: appliedPromoCode,
+    };
+  }
+
   async createTripPassInvoice(params: {
     groupId: string;
     buyerUserId: string;
     splitCost: boolean;
+    promoCode?: string;
   }): Promise<{ invoiceLink: string; purchaseId: string }> {
     const canCreateInvoiceLink = Boolean(this.bot) && !this.isTestEnv;
 
@@ -108,10 +208,20 @@ export class MonetizationService {
       throw new BadRequestException("Группа не найдена");
     }
 
-    const settlementFeeAmount = this.getSettlementFeeAmountForCurrency(
+    // Рассчитываем эффективные цены с учётом промокода или глобальной скидки
+    const pricingSnapshot = await this.calculateEffectivePricing({
       product,
-      group.settlementCurrency
-    );
+      settlementCurrency: group.settlementCurrency,
+      promoCode: params.promoCode,
+    });
+
+    // Если промокод применён, увеличиваем счётчик использований
+    if (pricingSnapshot.promoCode) {
+      await this.prisma.promoCode.update({
+        where: { code: pricingSnapshot.promoCode },
+        data: { redeemedCount: { increment: 1 } },
+      });
+    }
 
     const invoicePayload = `tp_${crypto.randomUUID()}`;
 
@@ -121,12 +231,14 @@ export class MonetizationService {
         groupId: params.groupId,
         buyerUserId: params.buyerUserId,
         invoicePayload,
-        starsAmount: product.starsPrice,
+        starsAmount: pricingSnapshot.effectiveStarsPrice,
         currency: "XTR",
         status: "CREATED",
         splitCost: params.splitCost,
-        settlementFeeAmount,
+        settlementFeeAmount: pricingSnapshot.effectiveSettlementFeeAmount,
         settlementCurrency: group.settlementCurrency,
+        appliedPromoCode: pricingSnapshot.promoCode,
+        pricingSnapshot: pricingSnapshot as any,
       },
       select: { id: true },
     });
@@ -144,7 +256,7 @@ export class MonetizationService {
       payload: invoicePayload,
       provider_token: "",
       currency: "XTR",
-      prices: [{ label: product.title, amount: product.starsPrice }],
+      prices: [{ label: product.title, amount: pricingSnapshot.effectiveStarsPrice }],
     })) as unknown as string;
 
     return { invoiceLink, purchaseId: purchase.id };

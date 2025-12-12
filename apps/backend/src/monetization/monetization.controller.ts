@@ -15,6 +15,7 @@ export class MonetizationController {
       groupId: dto.groupId,
       buyerUserId: user.id,
       splitCost: dto.splitCost,
+      promoCode: dto.promoCode,
     });
   }
 
