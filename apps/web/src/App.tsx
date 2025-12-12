@@ -7,6 +7,7 @@ import type {
   GroupBalance,
   Expense,
   GroupTransaction,
+  TripSummary,
 } from "./api";
 
 // Swipeable Expense Component
@@ -240,11 +241,6 @@ const DEV_USERS = [
   { id: "dev_333", name: "Иван", emoji: "👨‍🔧" },
 ];
 
-const isDevMode = () => {
-  const initData = import.meta.env.VITE_TG_INIT_DATA as string;
-  return initData?.startsWith("dev_") && !window.Telegram?.WebApp?.initData;
-};
-
 // SVG Icons
 const Icons = {
   plus: (
@@ -404,10 +400,12 @@ function App() {
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupCurrency, setNewGroupCurrency] = useState("RUB");
+  const [newGroupHomeCurrency, setNewGroupHomeCurrency] = useState("");
   const [newGroupImage, setNewGroupImage] = useState<File | null>(null);
   const [newGroupImagePreview, setNewGroupImagePreview] = useState<string>("");
   const [currencySearch, setCurrencySearch] = useState("");
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
+  const [showHomeCurrencyDropdown, setShowHomeCurrencyDropdown] = useState(false);
 
   // Приглашение в группу
   const [pendingInvite, setPendingInvite] = useState<InviteInfo | null>(null);
@@ -420,9 +418,32 @@ function App() {
   const [groupExpenses, setGroupExpenses] = useState<GroupTransaction[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>("balance");
 
+  // Trip Pass
+  const [tripPassStatus, setTripPassStatus] = useState<{
+    active: boolean;
+    endsAt?: string;
+  } | null>(null);
+  const [tripPassSplitCost, setTripPassSplitCost] = useState(false);
+  const [tripPassBuying, setTripPassBuying] = useState(false);
+  const [tripPassUpsell, setTripPassUpsell] = useState<null | {
+    reason: "scan" | "fx" | "close" | "soft";
+  }>(null);
+  const [tripPassComingSoon, setTripPassComingSoon] = useState<null | {
+    title: string;
+  }>(null);
+
+  // Trip Summary (Итоги поездки)
+  const [showTripSummary, setShowTripSummary] = useState(false);
+  const [tripSummary, setTripSummary] = useState<TripSummary | null>(null);
+  const [tripSummaryLoading, setTripSummaryLoading] = useState(false);
+
+  // Dev invite link
+  const [devInviteLink, setDevInviteLink] = useState("");
+
   // Расходы
   const [expenseTitle, setExpenseTitle] = useState("");
   const [expenseAmount, setExpenseAmount] = useState<number>(0);
+  const [expenseCurrency, setExpenseCurrency] = useState<string>("");
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>(
     []
   );
@@ -438,10 +459,13 @@ function App() {
   const [showEditGroup, setShowEditGroup] = useState(false);
   const [editGroupName, setEditGroupName] = useState("");
   const [editGroupCurrency, setEditGroupCurrency] = useState("");
+  const [editGroupHomeCurrency, setEditGroupHomeCurrency] = useState("");
   const [editGroupImage, setEditGroupImage] = useState<File | null>(null);
   const [editGroupImagePreview, setEditGroupImagePreview] =
     useState<string>("");
   const [showEditCurrencyDropdown, setShowEditCurrencyDropdown] =
+    useState(false);
+  const [showEditHomeCurrencyDropdown, setShowEditHomeCurrencyDropdown] =
     useState(false);
 
   // Подтверждение удаления
@@ -451,6 +475,7 @@ function App() {
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
     null
   );
+  const [showCloseGroupConfirm, setShowCloseGroupConfirm] = useState(false);
 
   // Подтверждение выхода из группы
   const [showLeaveConfirm, setShowLeaveConfirm] = useState<string | null>(null);
@@ -459,15 +484,38 @@ function App() {
   const [imageUploadStatus, setImageUploadStatus] = useState<
     "idle" | "uploading" | "done"
   >("idle");
-  const [savingSettings, setSavingSettings] = useState(false);
+  const [_savingSettings, setSavingSettings] = useState(false);
 
   // Тост подсказка для добавления на главный экран
   const [showHomeScreenTip, setShowHomeScreenTip] = useState(false);
+  const [showActiveGroupsLimit, setShowActiveGroupsLimit] = useState(false);
 
   const api = useMemo(
     () => createApiClient(initData || import.meta.env.VITE_TG_INIT_DATA || ""),
     [initData]
   );
+
+  const devSwitcherEnabled = useMemo(() => {
+    try {
+      return new URLSearchParams(window.location.search).get("dev") === "1";
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const devSwitcherAutoEnabled = useMemo(() => {
+    try {
+      return window.location.hostname !== "popolam.up.railway.app";
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const isDevSession = useCallback(() => {
+    const data =
+      initData || (import.meta.env.VITE_TG_INIT_DATA as string) || "";
+    return data.startsWith("dev_");
+  }, [initData]);
 
   const filteredCurrencies = useMemo(() => {
     if (!currencySearch) return CURRENCIES;
@@ -482,6 +530,32 @@ function App() {
   const currentGroup = useMemo(() => {
     return groups.find((g) => g.id === selectedGroup);
   }, [groups, selectedGroup]);
+
+  // Флаг: показывать второе отображение в домашней валюте
+  const showHomeAmount = useMemo(() => {
+    console.log('showHomeAmount check:', {
+      tripPassActive: tripPassStatus?.active,
+      homeCurrency: groupBalance?.group.homeCurrency,
+      homeFxRate: groupBalance?.group.homeFxRate,
+      settlementCurrency: groupBalance?.group.settlementCurrency,
+    });
+    if (!tripPassStatus?.active) return false;
+    if (!groupBalance?.group.homeCurrency) return false;
+    if (!groupBalance?.group.homeFxRate) return false;
+    if (groupBalance.group.homeCurrency === groupBalance.group.settlementCurrency) return false;
+    return true;
+  }, [tripPassStatus, groupBalance]);
+
+  // Конвертация суммы из валюты поездки в домашнюю
+  const toHomeAmount = useCallback(
+    (settlementAmount: number): number | null => {
+      if (!showHomeAmount || !groupBalance?.group.homeFxRate) return null;
+      // homeFxRate = сколько homeCurrency за 1 settlementCurrency
+      // homeApprox = settlementAmount * homeFxRate
+      return settlementAmount * groupBalance.group.homeFxRate;
+    },
+    [showHomeAmount, groupBalance]
+  );
 
   const getGroupColor = (index: number) =>
     GROUP_COLORS[index % GROUP_COLORS.length];
@@ -520,6 +594,17 @@ function App() {
     },
     [api]
   );
+
+  const handleDevInviteLink = useCallback(async () => {
+    if (!devInviteLink.trim()) return;
+    // Extract invite code from link like https://t.me/PopolamAppBot?startapp=CODE
+    const match = devInviteLink.match(/startapp=([a-zA-Z0-9-]+)/);
+    const code = match ? match[1] : devInviteLink.trim();
+    if (code) {
+      await checkInviteCode(code);
+      setDevInviteLink("");
+    }
+  }, [devInviteLink, checkInviteCode]);
 
   useEffect(() => {
     const webApp = window.Telegram?.WebApp;
@@ -595,6 +680,8 @@ function App() {
     setSelectedGroup("");
     setGroupBalance(null);
     setGroupExpenses([]);
+    setTripPassStatus(null);
+    setTripPassSplitCost(false);
   };
 
   const bootstrap = async () => {
@@ -622,10 +709,12 @@ function App() {
     try {
       await api.createGroup({
         name: newGroupName,
-        currency: newGroupCurrency,
+        settlementCurrency: newGroupCurrency,
+        homeCurrency: newGroupHomeCurrency || undefined,
         image: newGroupImage || undefined,
       });
       setNewGroupName("");
+      setNewGroupHomeCurrency("");
       setNewGroupImage(null);
       setNewGroupImagePreview("");
       setShowCreateGroup(false);
@@ -643,7 +732,17 @@ function App() {
         setTimeout(() => setShowHomeScreenTip(false), 8000);
       }
     } catch (error) {
-      alert(`Ошибка: ${(error as Error).message}`);
+      const message = (error as Error).message;
+      if (
+        message.includes(
+          "Для нескольких поездок одновременно удобнее Trip Pass или подписка"
+        )
+      ) {
+        setShowCreateGroup(false);
+        setShowActiveGroupsLimit(true);
+        return;
+      }
+      alert(`Ошибка: ${message}`);
     }
   };
 
@@ -664,6 +763,13 @@ function App() {
       if (message.includes("уже в этой группе")) {
         setPendingInvite(null);
         setInviteError("Вы уже состоите в этой группе");
+      } else if (
+        message.includes(
+          "Для нескольких поездок одновременно удобнее Trip Pass или подписка"
+        )
+      ) {
+        setPendingInvite(null);
+        setShowActiveGroupsLimit(true);
       } else {
         alert(`Ошибка: ${message}`);
       }
@@ -682,13 +788,30 @@ function App() {
     setShowAddExpense(false);
     setShowSettle(false);
     setShowEditGroup(false);
-    const [balance, expenses] = await Promise.all([
+    setTripPassUpsell(null);
+    setTripPassComingSoon(null);
+    const [balance, expenses, tpStatus] = await Promise.all([
       api.getGroupBalance(groupId),
       api.getGroupExpenses(groupId),
+      api.getTripPassStatus(groupId),
     ]);
     setGroupBalance(balance);
     setGroupExpenses(expenses);
+    setTripPassStatus(tpStatus);
+    setTripPassSplitCost(false);
     setSelectedParticipants(Object.keys(balance.balances));
+
+    try {
+      if (!tpStatus.active && balance.expensesCount > 0) {
+        const key = `tp_soft_upsell_shown_${groupId}`;
+        if (!localStorage.getItem(key)) {
+          localStorage.setItem(key, "1");
+          setTripPassUpsell({ reason: "soft" });
+        }
+      }
+    } catch {
+      // ignore
+    }
   };
 
   const handleCopyInviteLink = () => {
@@ -707,6 +830,121 @@ function App() {
     window.Telegram?.WebApp?.openTelegramLink?.(
       `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`
     );
+  };
+
+  const openTripPassUpsellModal = (
+    reason: "scan" | "fx" | "close" | "soft"
+  ) => {
+    setTripPassComingSoon(null);
+    setTripPassUpsell({ reason });
+  };
+
+  const openTripPassComingSoonModal = (title: string) => {
+    setTripPassUpsell(null);
+    setTripPassComingSoon({ title });
+  };
+
+  const handleBuyTripPass = async (openSummaryAfter = false) => {
+    if (!selectedGroup) return;
+    try {
+      setTripPassBuying(true);
+      const { invoiceLink, purchaseId } = await api.createTripPassInvoice({
+        groupId: selectedGroup,
+        splitCost: tripPassSplitCost,
+      });
+
+      const afterPurchase = async () => {
+        const [status, balance] = await Promise.all([
+          api.getTripPassStatus(selectedGroup),
+          api.getGroupBalance(selectedGroup),
+        ]);
+        setTripPassStatus(status);
+        setGroupBalance(balance);
+        setTripPassUpsell(null);
+        setTripPassBuying(false);
+        if (openSummaryAfter && status.active) {
+          // Открываем итоги после успешной покупки
+          const summary = await api.getTripSummary(selectedGroup);
+          setTripSummary(summary);
+          setShowTripSummary(true);
+        }
+      };
+
+      if (!invoiceLink) {
+        await api.devConfirmTripPass(purchaseId);
+        await afterPurchase();
+        return;
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const wa = window.Telegram?.WebApp as any;
+      if (wa?.openInvoice && invoiceLink) {
+        // Важно: колбэк openInvoice может не вызваться, поэтому не держим UI навсегда disabled
+        setTripPassBuying(false);
+        wa.openInvoice(invoiceLink, async () => {
+          try {
+            await afterPurchase();
+          } finally {
+            setTripPassBuying(false);
+          }
+        });
+        return;
+      }
+
+      if (isDevSession()) {
+        await api.devConfirmTripPass(purchaseId);
+        await afterPurchase();
+        return;
+      }
+
+      throw new Error("openInvoice недоступен");
+    } catch (error) {
+      setTripPassBuying(false);
+      alert(`Ошибка: ${(error as Error).message}`);
+    }
+  };
+
+  const openTripSummary = async () => {
+    if (!selectedGroup) return;
+    setTripSummaryLoading(true);
+    try {
+      const summary = await api.getTripSummary(selectedGroup);
+      setTripSummary(summary);
+      setShowTripSummary(true);
+      setTripPassUpsell(null);
+      setTripPassComingSoon(null);
+    } catch (error) {
+      const message = (error as Error).message;
+      if (message.includes("Trip Pass") || message.includes("закрытия")) {
+        // Нет доступа — показываем upsell
+        openTripPassUpsellModal("close");
+      } else {
+        alert(`Ошибка: ${message}`);
+      }
+    } finally {
+      setTripSummaryLoading(false);
+    }
+  };
+
+  const handleCloseTripFromSummary = async () => {
+    if (!selectedGroup) return;
+    try {
+      await api.closeGroup(selectedGroup);
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
+      // Перезагружаем данные
+      const [summary, balance, tpStatus, updatedGroups] = await Promise.all([
+        api.getTripSummary(selectedGroup),
+        api.getGroupBalance(selectedGroup),
+        api.getTripPassStatus(selectedGroup),
+        api.listGroups(),
+      ]);
+      setTripSummary(summary);
+      setGroupBalance(balance);
+      setTripPassStatus(tpStatus);
+      setGroups(updatedGroups);
+    } catch (error) {
+      alert(`Ошибка: ${(error as Error).message}`);
+    }
   };
 
   const toggleParticipant = (userId: string) => {
@@ -757,6 +995,7 @@ function App() {
 
       setExpenseTitle("");
       setExpenseAmount(0);
+      setExpenseCurrency(groupBalance?.group.currency ?? "RUB");
       setShowAddExpense(false);
       setEditingExpense(null);
 
@@ -780,6 +1019,7 @@ function App() {
     setEditingExpense(expense);
     setExpenseTitle(expense.description);
     setExpenseAmount(Number(expense.amount));
+    setExpenseCurrency(expense.currency || groupBalance?.group.currency || "RUB");
     // Берём только участников с owed > 0 (те, между кем делится расход)
     setSelectedParticipants(
       expense.shares.filter((s) => Number(s.owed) > 0).map((s) => s.userId)
@@ -850,6 +1090,7 @@ function App() {
     if (!currentGroup) return;
     setEditGroupName(currentGroup.name);
     setEditGroupCurrency(currentGroup.currency);
+    setEditGroupHomeCurrency(groupBalance?.group.homeCurrency || "");
     setEditGroupImage(null);
     setEditGroupImagePreview("");
     setShowEditGroup(true);
@@ -862,18 +1103,21 @@ function App() {
       setSavingSettings(true);
       await api.updateGroup(selectedGroup, {
         name: editGroupName,
-        currency: editGroupCurrency,
+        settlementCurrency: editGroupCurrency,
+        homeCurrency: editGroupHomeCurrency || undefined,
         image: editGroupImage || undefined,
       });
 
       window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
 
-      const [balance, updatedGroups] = await Promise.all([
+      const [balance, updatedGroups, tpStatus] = await Promise.all([
         api.getGroupBalance(selectedGroup),
         api.listGroups(),
+        api.getTripPassStatus(selectedGroup),
       ]);
       setGroupBalance(balance);
       setGroups(updatedGroups);
+      setTripPassStatus(tpStatus);
 
       alert("Настройки сохранены");
       setShowEditGroup(false);
@@ -884,6 +1128,30 @@ function App() {
       alert(`Ошибка: ${(error as Error).message}`);
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const handleCloseGroup = async () => {
+    if (!selectedGroup) return;
+    try {
+      await api.closeGroup(selectedGroup);
+      setShowCloseGroupConfirm(false);
+      setShowEditGroup(false);
+
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
+
+      const [balance, expenses, tpStatus, updatedGroups] = await Promise.all([
+        api.getGroupBalance(selectedGroup),
+        api.getGroupExpenses(selectedGroup),
+        api.getTripPassStatus(selectedGroup),
+        api.listGroups(),
+      ]);
+      setGroupBalance(balance);
+      setGroupExpenses(expenses);
+      setTripPassStatus(tpStatus);
+      setGroups(updatedGroups);
+    } catch (error) {
+      alert(`Ошибка: ${(error as Error).message}`);
     }
   };
 
@@ -1023,12 +1291,14 @@ function App() {
         setEditingExpense(null);
         setExpenseTitle("");
         setExpenseAmount(0);
+        setExpenseCurrency(groups[0].currency || "RUB");
         setShowAddExpense(true);
       });
     } else if (groupBalance) {
       setEditingExpense(null);
       setExpenseTitle("");
       setExpenseAmount(0);
+      setExpenseCurrency(groupBalance.group.currency || "RUB");
       setSelectedParticipants(Object.keys(groupBalance.balances));
       setShowAddExpense(true);
     }
@@ -1061,18 +1331,36 @@ function App() {
       )}
 
       {/* Dev User Switcher */}
-      {isDevMode() && (
-        <div className="dev-switcher">
-          <span className="dev-label">DEV:</span>
-          {DEV_USERS.map((devUser) => (
+      {(devSwitcherEnabled || devSwitcherAutoEnabled || isDevSession()) && (
+        <div className="dev-panel">
+          <div className="dev-switcher">
+            <span className="dev-label">DEV:</span>
+            {DEV_USERS.map((devUser) => (
+              <button
+                key={devUser.id}
+                className={`dev-user-btn ${initData === devUser.id ? "active" : ""}`}
+                onClick={() => switchDevUser(devUser.id)}
+              >
+                {devUser.emoji} {devUser.name}
+              </button>
+            ))}
+          </div>
+          <div className="dev-invite-row">
+            <input
+              value={devInviteLink}
+              onChange={(e) => setDevInviteLink(e.target.value)}
+              placeholder="Вставьте invite ссылку или код"
+              className="dev-invite-input"
+              onKeyDown={(e) => e.key === "Enter" && handleDevInviteLink()}
+            />
             <button
-              key={devUser.id}
-              className={`dev-user-btn ${initData === devUser.id ? "active" : ""}`}
-              onClick={() => switchDevUser(devUser.id)}
+              className="dev-invite-btn"
+              onClick={handleDevInviteLink}
+              disabled={!devInviteLink.trim()}
             >
-              {devUser.emoji} {devUser.name}
+              →
             </button>
-          ))}
+          </div>
         </div>
       )}
 
@@ -1299,24 +1587,52 @@ function App() {
                 </div>
               </div>
 
+              {groupBalance.expensesCount > 0 && (
+                <button
+                  type="button"
+                  className="primary-btn"
+                  style={{ width: "100%", marginTop: 12 }}
+                  onClick={openTripSummary}
+                  disabled={tripSummaryLoading}
+                >
+                  {tripSummaryLoading ? "Загрузка..." : "Посчитать итоги"}
+                </button>
+              )}
+
               {/* Итоги: вам должны / вы должны */}
               <div className="balance-totals">
                 {getTotalOwedToMe() > 0 && (
                   <div className="balance-total-row">
                     <span className="balance-total-label">Вам должны</span>
-                    <span className="balance-total-amount positive">
-                      {getTotalOwedToMe().toFixed(0)}{" "}
-                      {getCurrencySymbol(groupBalance.group.currency)}
-                    </span>
+                    <div>
+                      <span className="balance-total-amount positive">
+                        {getTotalOwedToMe().toFixed(0)}{" "}
+                        {getCurrencySymbol(groupBalance.group.currency)}
+                      </span>
+                      {showHomeAmount && toHomeAmount(getTotalOwedToMe()) !== null && (
+                        <div className="approx-amount">
+                          ≈ {toHomeAmount(getTotalOwedToMe())!.toFixed(0)}{" "}
+                          {getCurrencySymbol(groupBalance.group.homeCurrency!)}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
                 {getTotalIOwe() > 0 && (
                   <div className="balance-total-row">
                     <span className="balance-total-label">Вы должны</span>
-                    <span className="balance-total-amount negative">
-                      {getTotalIOwe().toFixed(0)}{" "}
-                      {getCurrencySymbol(groupBalance.group.currency)}
-                    </span>
+                    <div>
+                      <span className="balance-total-amount negative">
+                        {getTotalIOwe().toFixed(0)}{" "}
+                        {getCurrencySymbol(groupBalance.group.currency)}
+                      </span>
+                      {showHomeAmount && toHomeAmount(getTotalIOwe()) !== null && (
+                        <div className="approx-amount">
+                          ≈ {toHomeAmount(getTotalIOwe())!.toFixed(0)}{" "}
+                          {getCurrencySymbol(groupBalance.group.homeCurrency!)}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1330,10 +1646,18 @@ function App() {
                       <span className="debt-text positive">
                         {debt.name} должен вам
                       </span>
-                      <span className="debt-amount positive">
-                        {debt.amount.toFixed(0)}{" "}
-                        {getCurrencySymbol(groupBalance.group.currency)}
-                      </span>
+                      <div style={{ textAlign: "right" }}>
+                        <span className="debt-amount positive">
+                          {debt.amount.toFixed(0)}{" "}
+                          {getCurrencySymbol(groupBalance.group.currency)}
+                        </span>
+                        {showHomeAmount && toHomeAmount(debt.amount) !== null && (
+                          <div className="approx-amount">
+                            ≈ {toHomeAmount(debt.amount)!.toFixed(0)}{" "}
+                            {getCurrencySymbol(groupBalance.group.homeCurrency!)}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                   {getDebtsBreakdown().iOwe.map((debt, i) => (
@@ -1341,10 +1665,18 @@ function App() {
                       <span className="debt-text negative">
                         Вы должны {debt.name}
                       </span>
-                      <span className="debt-amount negative">
-                        {debt.amount.toFixed(0)}{" "}
-                        {getCurrencySymbol(groupBalance.group.currency)}
-                      </span>
+                      <div style={{ textAlign: "right" }}>
+                        <span className="debt-amount negative">
+                          {debt.amount.toFixed(0)}{" "}
+                          {getCurrencySymbol(groupBalance.group.currency)}
+                        </span>
+                        {showHomeAmount && toHomeAmount(debt.amount) !== null && (
+                          <div className="approx-amount">
+                            ≈ {toHomeAmount(debt.amount)!.toFixed(0)}{" "}
+                            {getCurrencySymbol(groupBalance.group.homeCurrency!)}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1375,13 +1707,22 @@ function App() {
                         <span className="inactive-badge">вышел</span>
                       )}
                     </span>
-                    <span
-                      className={`balance-user-amount ${balance >= 0 ? "positive" : "negative"}`}
-                    >
-                      {balance >= 0 ? "+" : ""}
-                      {balance.toFixed(0)}{" "}
-                      {getCurrencySymbol(groupBalance.group.currency)}
-                    </span>
+                    <div style={{ textAlign: "right" }}>
+                      <span
+                        className={`balance-user-amount ${balance >= 0 ? "positive" : "negative"}`}
+                      >
+                        {balance >= 0 ? "+" : ""}
+                        {balance.toFixed(0)}{" "}
+                        {getCurrencySymbol(groupBalance.group.currency)}
+                      </span>
+                      {showHomeAmount && toHomeAmount(balance) !== null && (
+                        <div className="approx-amount">
+                          ≈ {balance >= 0 ? "+" : ""}
+                          {toHomeAmount(balance)!.toFixed(0)}{" "}
+                          {getCurrencySymbol(groupBalance.group.homeCurrency!)}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1392,6 +1733,28 @@ function App() {
                   <p className="empty-state-text">Пока нет участников</p>
                 </div>
               )}
+
+              {/* Upsell banner for home currency display */}
+              {!tripPassStatus?.active && groupBalance.expensesCount > 0 && (
+                <div
+                  className="home-currency-upsell"
+                  onClick={() => openTripPassUpsellModal("soft")}
+                >
+                  💱 Показывать суммы в домашней валюте — доступно в Trip Pass
+                </div>
+              )}
+
+              {/* Hint if Trip Pass active but homeCurrency not set */}
+              {tripPassStatus?.active &&
+                !groupBalance.group.homeCurrency &&
+                groupBalance.expensesCount > 0 && (
+                  <div
+                    className="home-currency-upsell"
+                    onClick={openEditGroup}
+                  >
+                    ⚙️ Выберите домашнюю валюту в настройках группы
+                  </div>
+                )}
             </section>
           )}
 
@@ -1437,24 +1800,37 @@ function App() {
                             {Number(item.amount).toFixed(0)}{" "}
                             {getCurrencySymbol(item.currency)}
                           </div>
+                          {showHomeAmount && toHomeAmount(Number(item.amount)) !== null && (
+                            <div className="expense-home-amount">
+                              ≈ {Number(item.amount) > 0 && (item.fromUser.id === user?.id ? "-" : item.toUser.id === user?.id ? "+" : "")}
+                              {toHomeAmount(Number(item.amount))!.toFixed(0)} {getCurrencySymbol(groupBalance!.group.homeCurrency!)}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ) : (
                       <SwipeableExpense
                         key={item.id}
-                        isOwner={item.createdBy.id === user?.id}
+                        isOwner={item.createdBy.id === user?.id && !item.isSystem}
                         onEdit={() => handleEditExpense(item)}
                         onDelete={() => handleDeleteExpense(item.id)}
                       >
                         <div className="expense-icon">{Icons.receipt}</div>
                         <div className="expense-details">
                           <div className="expense-title">
-                            {item.description}
+                            {item.isSystem
+                              ? `Сервис: ${item.description}`
+                              : item.description}
                           </div>
                           <div className="expense-meta">
                             {getMyExpenseShare(item).payer}{" "}
                             {Number(item.amount).toFixed(0)}{" "}
                             {getCurrencySymbol(item.currency)}
+                            {showHomeAmount && toHomeAmount(Number(item.amount)) !== null && (
+                              <span className="expense-meta-home">
+                                {" "}≈ {toHomeAmount(Number(item.amount))!.toFixed(0)} {getCurrencySymbol(groupBalance!.group.homeCurrency!)}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="expense-right">
@@ -1470,6 +1846,11 @@ function App() {
                                     {share.amount.toFixed(0)}{" "}
                                     {getCurrencySymbol(item.currency)}
                                   </div>
+                                  {showHomeAmount && toHomeAmount(share.amount) !== null && (
+                                    <div className="expense-home-amount">
+                                      ≈ +{toHomeAmount(share.amount)!.toFixed(0)} {getCurrencySymbol(groupBalance!.group.homeCurrency!)}
+                                    </div>
+                                  )}
                                 </>
                               );
                             } else if (
@@ -1485,6 +1866,11 @@ function App() {
                                     {share.amount.toFixed(0)}{" "}
                                     {getCurrencySymbol(item.currency)}
                                   </div>
+                                  {showHomeAmount && toHomeAmount(share.amount) !== null && (
+                                    <div className="expense-home-amount">
+                                      ≈ -{toHomeAmount(share.amount)!.toFixed(0)} {getCurrencySymbol(groupBalance!.group.homeCurrency!)}
+                                    </div>
+                                  )}
                                 </>
                               );
                             }
@@ -1634,6 +2020,61 @@ function App() {
               )}
             </div>
 
+            <span className="label">Домашняя валюта (необязательно)</span>
+            <div className="currency-select">
+              <div
+                className="currency-input"
+                onClick={() => setShowHomeCurrencyDropdown(!showHomeCurrencyDropdown)}
+              >
+                <span>
+                  {newGroupHomeCurrency
+                    ? `${getCurrencySymbol(newGroupHomeCurrency)} ${newGroupHomeCurrency}`
+                    : "Не выбрана"}
+                </span>
+                <span className="arrow">▼</span>
+              </div>
+
+              {showHomeCurrencyDropdown && (
+                <div className="currency-dropdown">
+                  <input
+                    value={currencySearch}
+                    onChange={(e) => setCurrencySearch(e.target.value)}
+                    placeholder="Поиск валюты..."
+                    className="currency-search"
+                  />
+                  <div className="currency-list">
+                    <div
+                      className={`currency-option ${!newGroupHomeCurrency ? "selected" : ""}`}
+                      onClick={() => {
+                        setNewGroupHomeCurrency("");
+                        setShowHomeCurrencyDropdown(false);
+                        setCurrencySearch("");
+                      }}
+                    >
+                      <span className="currency-symbol">—</span>
+                      <span className="currency-code">Нет</span>
+                      <span className="currency-name">Не выбрана</span>
+                    </div>
+                    {filteredCurrencies.map((c) => (
+                      <div
+                        key={c.code}
+                        className={`currency-option ${newGroupHomeCurrency === c.code ? "selected" : ""}`}
+                        onClick={() => {
+                          setNewGroupHomeCurrency(c.code);
+                          setShowHomeCurrencyDropdown(false);
+                          setCurrencySearch("");
+                        }}
+                      >
+                        <span className="currency-symbol">{c.symbol}</span>
+                        <span className="currency-code">{c.code}</span>
+                        <span className="currency-name">{c.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button
               onClick={handleCreateGroup}
               disabled={!newGroupName}
@@ -1716,6 +2157,46 @@ function App() {
               onChange={(e) => setExpenseAmount(Number(e.target.value))}
               placeholder={`Сумма в ${getCurrencySymbol(groupBalance.group.currency)}`}
             />
+
+            <select
+              value={expenseCurrency || groupBalance.group.currency}
+              onChange={(e) => {
+                const next = e.target.value;
+                const groupCur = groupBalance.group.currency;
+                if (next && next !== groupCur) {
+                  if (tripPassStatus?.active) {
+                    openTripPassComingSoonModal("Мультивалютные траты");
+                  } else {
+                    openTripPassUpsellModal("fx");
+                  }
+                  setExpenseCurrency(groupCur);
+                  return;
+                }
+                setExpenseCurrency(groupCur);
+              }}
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.code}
+                </option>
+              ))}
+            </select>
+
+
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={() => {
+                if (tripPassStatus?.active) {
+                  openTripPassComingSoonModal("Сканирование чеков");
+                } else {
+                  openTripPassUpsellModal("scan");
+                }
+              }}
+              style={{ marginTop: 8 }}
+            >
+              Сканировать чек
+            </button>
 
             <span className="label">Разделить между:</span>
             <div className="participants-list">
@@ -1907,12 +2388,85 @@ function App() {
               )}
             </div>
 
+            {/* Trip Pass status */}
+            {tripPassStatus?.active && tripPassStatus.endsAt && (
+              <div className="trip-pass-status">
+                ✨ Trip Pass активен до{" "}
+                {new Date(tripPassStatus.endsAt).toLocaleDateString("ru-RU", {
+                  day: "numeric",
+                  month: "long",
+                })}
+              </div>
+            )}
+
+            {/* Home currency selector (only when Trip Pass is active) */}
+            {tripPassStatus?.active && (
+              <>
+                <span className="label">Домашняя валюта</span>
+                <div className="currency-select">
+                  <div
+                    className="currency-input"
+                    onClick={() =>
+                      setShowEditHomeCurrencyDropdown(!showEditHomeCurrencyDropdown)
+                    }
+                  >
+                    <span>
+                      {editGroupHomeCurrency
+                        ? `${getCurrencySymbol(editGroupHomeCurrency)} ${editGroupHomeCurrency}`
+                        : "Не выбрана"}
+                    </span>
+                    <span className="arrow">▼</span>
+                  </div>
+
+                  {showEditHomeCurrencyDropdown && (
+                    <div className="currency-dropdown">
+                      <div className="currency-list">
+                        <div
+                          className={`currency-option ${!editGroupHomeCurrency ? "selected" : ""}`}
+                          onClick={() => {
+                            setEditGroupHomeCurrency("");
+                            setShowEditHomeCurrencyDropdown(false);
+                          }}
+                        >
+                          <span className="currency-symbol">—</span>
+                          <span className="currency-code">Нет</span>
+                          <span className="currency-name">Не выбрана</span>
+                        </div>
+                        {CURRENCIES.map((c) => (
+                          <div
+                            key={c.code}
+                            className={`currency-option ${editGroupHomeCurrency === c.code ? "selected" : ""}`}
+                            onClick={() => {
+                              setEditGroupHomeCurrency(c.code);
+                              setShowEditHomeCurrencyDropdown(false);
+                            }}
+                          >
+                            <span className="currency-symbol">{c.symbol}</span>
+                            <span className="currency-code">{c.code}</span>
+                            <span className="currency-name">{c.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
             <button
               onClick={handleUpdateGroup}
               disabled={!editGroupName}
               className="primary-btn"
             >
               Сохранить
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowCloseGroupConfirm(true)}
+              className="primary-btn"
+            >
+              Закрыть поездку
             </button>
 
             <button
@@ -1961,6 +2515,28 @@ function App() {
         </div>
       )}
 
+      {/* Close Group Confirmation Modal */}
+      {showCloseGroupConfirm && (
+        <div className="modal-overlay">
+          <div className="modal confirm-modal">
+            <div className="confirm-icon">✅</div>
+            <h3>Закрыть поездку</h3>
+            <p>Закрыть поездку вручную? Trip Pass для этой группы завершится.</p>
+            <div className="confirm-buttons">
+              <button
+                className="decline-btn"
+                onClick={() => setShowCloseGroupConfirm(false)}
+              >
+                Отмена
+              </button>
+              <button className="accept-btn" onClick={handleCloseGroup}>
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Leave Group Confirmation Modal */}
       {showLeaveConfirm && (
         <div className="modal-overlay">
@@ -1989,6 +2565,28 @@ function App() {
         </div>
       )}
 
+      {/* Active Groups Limit Modal */}
+      {showActiveGroupsLimit && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowActiveGroupsLimit(false)}
+        >
+          <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-icon">✨</div>
+            <h3>Лимит бесплатной версии</h3>
+            <p>Для нескольких поездок одновременно удобнее Trip Pass или подписка.</p>
+            <div className="confirm-buttons">
+              <button
+                className="accept-btn"
+                onClick={() => setShowActiveGroupsLimit(false)}
+              >
+                Ок
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Home Screen Tip Toast */}
       {showHomeScreenTip && (
         <div className="toast-tip" onClick={() => setShowHomeScreenTip(false)}>
@@ -1999,6 +2597,423 @@ function App() {
           </span>
         </div>
       )}
+
+      {/* Trip Pass Upsell Modal */}
+      {tripPassUpsell && (
+        <div
+          className="modal-overlay"
+          onClick={() => setTripPassUpsell(null)}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{tripPassUpsell.reason === "close" ? "Итоги поездки" : "Trip Pass"}</h3>
+              <button className="close-btn" onClick={() => setTripPassUpsell(null)}>
+                ✕
+              </button>
+            </div>
+            <p style={{ marginTop: 0, opacity: 0.9 }}>
+              {tripPassUpsell.reason === "scan"
+                ? "Сканирование чеков доступно с Trip Pass."
+                : tripPassUpsell.reason === "fx"
+                  ? "Мультивалютные траты доступны с Trip Pass."
+                  : tripPassUpsell.reason === "close"
+                    ? "Итоги — это не просто баланс, а финальный разбор поездки: статистика расходов, роли участников и готовый план переводов для закрытия."
+                    : "Trip Pass открывает мультивалюту, скан чеков и умные итоги поездки."}
+            </p>
+            <button
+              className="primary-btn"
+              style={{ width: "100%", marginTop: 6 }}
+              onClick={() => handleBuyTripPass(tripPassUpsell.reason === "close")}
+              disabled={tripPassBuying}
+            >
+              {tripPassBuying ? "..." : "Купить Trip Pass (21 день)"}
+            </button>
+            <label
+              style={{
+                display: "grid",
+                gridTemplateColumns: "22px 1fr",
+                columnGap: 10,
+                alignItems: "start",
+                marginTop: 12,
+                fontSize: 14,
+                opacity: 0.95,
+                lineHeight: 1.2,
+                width: "100%",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={tripPassSplitCost}
+                onChange={(e) => setTripPassSplitCost(e.target.checked)}
+                style={{ marginTop: 2 }}
+              />
+              <span>Разделить стоимость между участниками</span>
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* Trip Pass Feature Placeholder */}
+      {tripPassComingSoon && (
+        <div
+          className="modal-overlay"
+          onClick={() => setTripPassComingSoon(null)}
+        >
+          <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-icon">⏳</div>
+            <h3>{tripPassComingSoon.title}</h3>
+            <p>Функция в разработке</p>
+            <div className="confirm-buttons">
+              <button
+                className="accept-btn"
+                onClick={() => setTripPassComingSoon(null)}
+              >
+                Ок
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Trip Summary Screen */}
+      {showTripSummary && tripSummary && groupBalance && (() => {
+        // Подготовка данных для графиков
+        const dailyData = tripSummary.charts.dailySpending;
+        const maxDailyAmount = Math.max(...dailyData.map(d => d.amount), 1);
+        const memberData = tripSummary.charts.spendingByMember;
+        const totalPaid = memberData.reduce((s, m) => s + m.paid, 0);
+        const pieColors = ['#b39ddb', '#81c784', '#ffab91', '#a8d8ea', '#f5a3c7', '#ffb545'];
+
+        return (
+        <div className="modal-overlay" onClick={() => setShowTripSummary(false)}>
+          <div className="trip-summary-screen" onClick={(e) => e.stopPropagation()}>
+            <div className="trip-summary-header">
+              <h2>📊 Итоги поездки</h2>
+              <button
+                className="close-btn"
+                onClick={() => setShowTripSummary(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Hero: Ваша доля */}
+            <div className="trip-summary-hero">
+              <div className="trip-summary-hero-icon">🎒</div>
+              <div className="trip-summary-hero-label">Ваша доля расходов</div>
+              <div className="trip-summary-hero-amount">
+                {tripSummary.header.yourTripTotal.toFixed(0)}{" "}
+                {getCurrencySymbol(tripSummary.header.tripCurrency)}
+              </div>
+              {tripSummary.header.homeApprox !== undefined && tripSummary.header.homeCurrency && (
+                <div className="trip-summary-hero-approx">
+                  ≈ {tripSummary.header.homeApprox.toFixed(0)}{" "}
+                  {getCurrencySymbol(tripSummary.header.homeCurrency)}
+                </div>
+              )}
+              <div className="trip-summary-hero-hint">
+                Сколько вы потратили в этой поездке
+              </div>
+            </div>
+
+            {/* Блок: Статистика */}
+            <div className="trip-summary-block">
+              <div className="trip-summary-block-title">📈 Расходы группы</div>
+              <div className="trip-summary-stats-grid">
+                <div className="stats-card stats-card-total">
+                  <span className="stats-card-value">
+                    {tripSummary.spendingStats.groupTotalSpent.toFixed(0)}
+                  </span>
+                  <span className="stats-card-label">
+                    {getCurrencySymbol(tripSummary.header.tripCurrency)} потратила группа
+                  </span>
+                  {tripSummary.header.homeCurrency && tripSummary.header.homeFxRate && (
+                    <span className="stats-card-home">
+                      ≈ {(tripSummary.spendingStats.groupTotalSpent * tripSummary.header.homeFxRate).toFixed(0)} {getCurrencySymbol(tripSummary.header.homeCurrency)}
+                    </span>
+                  )}
+                </div>
+                <div className="stats-card">
+                  <span className="stats-card-value">
+                    {tripSummary.spendingStats.avgPerPerson.toFixed(0)}
+                  </span>
+                  <span className="stats-card-label">
+                    {getCurrencySymbol(tripSummary.header.tripCurrency)} в среднем на человека
+                  </span>
+                  {tripSummary.header.homeCurrency && tripSummary.header.homeFxRate && (
+                    <span className="stats-card-home">
+                      ≈ {(tripSummary.spendingStats.avgPerPerson * tripSummary.header.homeFxRate).toFixed(0)} {getCurrencySymbol(tripSummary.header.homeCurrency)}
+                    </span>
+                  )}
+                </div>
+                <div className="stats-card">
+                  <span className="stats-card-value">
+                    {tripSummary.spendingStats.avgPerDay.toFixed(0)}
+                  </span>
+                  <span className="stats-card-label">
+                    {getCurrencySymbol(tripSummary.header.tripCurrency)} в среднем за день
+                  </span>
+                  {tripSummary.header.homeCurrency && tripSummary.header.homeFxRate && (
+                    <span className="stats-card-home">
+                      ≈ {(tripSummary.spendingStats.avgPerDay * tripSummary.header.homeFxRate).toFixed(0)} {getCurrencySymbol(tripSummary.header.homeCurrency)}
+                    </span>
+                  )}
+                </div>
+                <div className="stats-card">
+                  <span className="stats-card-value">
+                    {dailyData.length}
+                  </span>
+                  <span className="stats-card-label">дней поездки</span>
+                </div>
+                <div className="stats-card">
+                  <span className="stats-card-value">
+                    {memberData.length}
+                  </span>
+                  <span className="stats-card-label">участников</span>
+                </div>
+                <div className="stats-card">
+                  <span className="stats-card-value">
+                    {tripSummary.spendingStats.expensesCount}
+                  </span>
+                  <span className="stats-card-label">трат всего</span>
+                </div>
+                <div className="stats-card">
+                  <span className="stats-card-value">
+                    {tripSummary.spendingStats.expensesCount > 0 
+                      ? Math.round(tripSummary.spendingStats.groupTotalSpent / tripSummary.spendingStats.expensesCount)
+                      : 0}
+                  </span>
+                  <span className="stats-card-label">
+                    {getCurrencySymbol(tripSummary.header.tripCurrency)} средний чек
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Блок: График по дням */}
+            {dailyData.length > 1 && (
+              <div className="trip-summary-block">
+                <div className="trip-summary-block-title">📅 Расходы по дням</div>
+                <div className="daily-chart">
+                  {dailyData.map((day, i) => {
+                    const heightPercent = (day.amount / maxDailyAmount) * 100;
+                    const isMax = tripSummary.spendingStats.mostExpensiveDay?.date === day.date;
+                    return (
+                      <div key={i} className="daily-chart-bar-wrapper">
+                        <div className="daily-chart-amount">
+                          {day.amount.toFixed(0)}
+                        </div>
+                        <div
+                          className={`daily-chart-bar ${isMax ? 'daily-chart-bar-max' : ''}`}
+                          style={{ height: `${Math.max(heightPercent, 8)}%` }}
+                        />
+                        <div className="daily-chart-label">
+                          {new Date(day.date).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace('.', '')}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {tripSummary.spendingStats.mostExpensiveDay && (
+                  <div className="daily-chart-legend">
+                    🔥 Самый дорогой день:{" "}
+                    <strong>
+                      {new Date(tripSummary.spendingStats.mostExpensiveDay.date).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}
+                    </strong>{" "}
+                    — {tripSummary.spendingStats.mostExpensiveDay.amount.toFixed(0)} {getCurrencySymbol(tripSummary.header.tripCurrency)}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Блок: Кто сколько оплатил (Pie Chart) */}
+            {memberData.length > 1 && (
+              <div className="trip-summary-block">
+                <div className="trip-summary-block-title">💰 Кто сколько оплатил</div>
+                <div className="pie-chart-container">
+                  <div className="pie-chart">
+                    <svg viewBox="0 0 100 100" className="pie-chart-svg">
+                      {(() => {
+                        let cumulative = 0;
+                        return memberData.map((member, i) => {
+                          const percent = totalPaid > 0 ? (member.paid / totalPaid) * 100 : 0;
+                          const startAngle = cumulative * 3.6;
+                          cumulative += percent;
+                          const endAngle = cumulative * 3.6;
+                          
+                          const startRad = (startAngle - 90) * Math.PI / 180;
+                          const endRad = (endAngle - 90) * Math.PI / 180;
+                          
+                          const x1 = 50 + 40 * Math.cos(startRad);
+                          const y1 = 50 + 40 * Math.sin(startRad);
+                          const x2 = 50 + 40 * Math.cos(endRad);
+                          const y2 = 50 + 40 * Math.sin(endRad);
+                          
+                          const largeArc = percent > 50 ? 1 : 0;
+                          
+                          if (percent < 0.5) return null;
+                          
+                          return (
+                            <path
+                              key={i}
+                              d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                              fill={pieColors[i % pieColors.length]}
+                            />
+                          );
+                        });
+                      })()}
+                    </svg>
+                  </div>
+                  <div className="pie-chart-legend">
+                    {memberData.map((member, i) => {
+                      const percent = totalPaid > 0 ? (member.paid / totalPaid) * 100 : 0;
+                      return (
+                        <div key={i} className="pie-legend-item">
+                          <span
+                            className="pie-legend-color"
+                            style={{ background: pieColors[i % pieColors.length] }}
+                          />
+                          <span className="pie-legend-name">{member.name}</span>
+                          <span className="pie-legend-value">
+                            {member.paid.toFixed(0)} {getCurrencySymbol(tripSummary.header.tripCurrency)}
+                            <span className="pie-legend-percent">({percent.toFixed(0)}%)</span>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Блок: Роли в поездке */}
+            <div className="trip-summary-block">
+              <div className="trip-summary-block-title">🏆 Кто как участвовал</div>
+              <div className="trip-summary-roles">
+                {tripSummary.roles.topPayer && (
+                  <div className="trip-summary-role role-highlight">
+                    <span className="role-emoji">💳</span>
+                    <div className="role-content">
+                      <span className="role-text">
+                        <strong>{tripSummary.roles.topPayer.name}</strong> — больше всех платил за группу
+                      </span>
+                      <span className="role-detail">
+                        Оплатил расходов на {tripSummary.roles.topPayer.amount.toFixed(0)} {getCurrencySymbol(tripSummary.header.tripCurrency)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {tripSummary.roles.mostFrequentParticipant && (
+                  <div className="trip-summary-role">
+                    <span className="role-emoji">🎯</span>
+                    <div className="role-content">
+                      <span className="role-text">
+                        <strong>{tripSummary.roles.mostFrequentParticipant.name}</strong> — чаще всех участвовал в тратах
+                      </span>
+                      <span className="role-detail">
+                        Был в {tripSummary.roles.mostFrequentParticipant.count} общих расходах
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {tripSummary.roles.topCreditor && (
+                  <div className="trip-summary-role role-positive">
+                    <span className="role-emoji">💚</span>
+                    <div className="role-content">
+                      <span className="role-text">
+                        <strong>{tripSummary.roles.topCreditor.name}</strong> — заплатил больше своей доли
+                      </span>
+                      <span className="role-detail">
+                        Ему должны вернуть {tripSummary.roles.topCreditor.amount.toFixed(0)} {getCurrencySymbol(tripSummary.header.tripCurrency)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {tripSummary.roles.topDebtor && (
+                  <div className="trip-summary-role role-negative">
+                    <span className="role-emoji">🧾</span>
+                    <div className="role-content">
+                      <span className="role-text">
+                        <strong>{tripSummary.roles.topDebtor.name}</strong> — заплатил меньше своей доли
+                      </span>
+                      <span className="role-detail">
+                        Должен вернуть {tripSummary.roles.topDebtor.amount.toFixed(0)} {getCurrencySymbol(tripSummary.header.tripCurrency)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Блок: Финальные расчёты */}
+            <div className="trip-summary-block">
+              <div className="trip-summary-block-title">🤝 Финальные расчёты</div>
+              {tripSummary.finalPlan.length === 0 ? (
+                <div className="trip-summary-empty">
+                  <span className="empty-icon">✅</span>
+                  <span>Все расчёты завершены!</span>
+                </div>
+              ) : (
+                <div className="trip-summary-plan">
+                  {tripSummary.finalPlan.map((transfer, i) => (
+                    <div key={i} className="trip-summary-transfer">
+                      <div className="transfer-users">
+                        <span className="transfer-from">{transfer.fromName}</span>
+                        <span className="transfer-arrow">→</span>
+                        <span className="transfer-to">{transfer.toName}</span>
+                      </div>
+                      <div className="transfer-amounts">
+                        <span className="transfer-amount">
+                          {transfer.amount.toFixed(0)}{" "}
+                          {getCurrencySymbol(tripSummary.header.tripCurrency)}
+                        </span>
+                        {tripSummary.header.homeCurrency && tripSummary.header.homeFxRate && (
+                          <span className="transfer-amount-home">
+                            ≈ {(transfer.amount * tripSummary.header.homeFxRate).toFixed(0)} {getCurrencySymbol(tripSummary.header.homeCurrency)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Блок: Закрытие поездки */}
+            <div className="trip-summary-block trip-summary-close-block">
+              <div className="trip-summary-block-title">🔒 Закрытие поездки</div>
+              {tripSummary.meta.closedAt ? (
+                <div className="trip-summary-closed-info">
+                  <span className="closed-icon">✅</span>
+                  <span>
+                    Поездка завершена{" "}
+                    {new Date(tripSummary.meta.closedAt).toLocaleDateString("ru-RU", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <p className="trip-summary-close-text">
+                    После закрытия все цифры фиксируются, группа станет архивной, но итоги всегда будут доступны.
+                  </p>
+                  {tripSummary.meta.canClose && (
+                    <button
+                      className="primary-btn trip-summary-close-btn"
+                      onClick={handleCloseTripFromSummary}
+                    >
+                      Завершить поездку
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+        );
+      })()}
     </div>
   );
 }

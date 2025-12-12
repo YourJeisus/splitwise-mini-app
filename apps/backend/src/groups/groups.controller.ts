@@ -55,7 +55,16 @@ export class GroupsController {
   update(
     @AuthUser() user: any,
     @Param("id") id: string,
-    @Body() dto: { name?: string; currency?: string },
+    @Body()
+    dto: {
+      name?: string;
+      settlementCurrency?: string;
+      homeCurrency?: string;
+      fxMode?: string;
+      fixedFxRates?: any;
+      fixedFxDate?: string;
+      fixedFxSource?: string;
+    },
     @UploadedFile() image?: Express.Multer.File
   ) {
     return this.groupsService.update(user.id, id, dto, image);
@@ -74,8 +83,20 @@ export class GroupsController {
   }
 
   @UseGuards(TelegramAuthGuard)
+  @Post(":id/close")
+  close(@AuthUser() user: any, @Param("id") id: string) {
+    return this.groupsService.closeGroup(user.id, id);
+  }
+
+  @UseGuards(TelegramAuthGuard)
   @Get(":id/balance")
   balance(@Param("id") id: string) {
     return this.groupsService.getBalance(id);
+  }
+
+  @UseGuards(TelegramAuthGuard)
+  @Get(":id/trip-summary")
+  tripSummary(@AuthUser() user: any, @Param("id") id: string) {
+    return this.groupsService.getTripSummary(user.id, id);
   }
 }

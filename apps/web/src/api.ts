@@ -24,10 +24,14 @@ export type Group = {
   name: string;
   imageUrl?: string;
   currency: string;
+  settlementCurrency?: string;
+  homeCurrency?: string;
   inviteCode?: string;
   createdById?: string;
   role: string;
   userBalance?: number;
+  closedAt?: string | null;
+  lastActivityAt?: string | null;
 };
 
 export type GroupBalance = {
@@ -36,7 +40,14 @@ export type GroupBalance = {
     name: string;
     imageUrl?: string;
     currency: string;
+    settlementCurrency?: string;
+    homeCurrency?: string;
     inviteCode?: string;
+    closedAt?: string | null;
+    lastActivityAt?: string | null;
+    homeFxRate?: number;
+    homeFxDate?: string;
+    homeFxSource?: string;
   };
   balances: Record<string, number>;
   userNames: Record<string, string>;
@@ -52,6 +63,9 @@ export type Expense = {
   description: string;
   amount: number;
   currency: string;
+  isSystem?: boolean;
+  systemType?: string | null;
+  purchaseId?: string | null;
   category?: string;
   createdAt: string;
   createdBy: {
@@ -92,9 +106,53 @@ export type Settlement = {
 
 export type GroupTransaction = Expense | Settlement;
 
+export type TripSummary = {
+  header: {
+    yourTripTotal: number;
+    tripCurrency: string;
+    homeCurrency?: string;
+    homeApprox?: number;
+    homeFxRate?: number;
+  };
+  spendingStats: {
+    groupTotalSpent: number;
+    avgPerPerson: number;
+    avgPerDay: number;
+    mostExpensiveDay: { date: string; amount: number } | null;
+    expensesCount: number;
+  };
+  roles: {
+    topPayer: { userId: string; name: string; amount: number } | null;
+    mostFrequentParticipant: { userId: string; name: string; count: number } | null;
+    topDebtor: { userId: string; name: string; amount: number } | null;
+    topCreditor: { userId: string; name: string; amount: number } | null;
+  };
+  finalPlan: Array<{
+    fromUserId: string;
+    fromName: string;
+    toUserId: string;
+    toName: string;
+    amount: number;
+  }>;
+  charts: {
+    dailySpending: Array<{ date: string; amount: number }>;
+    spendingByMember: Array<{ userId: string; name: string; paid: number }>;
+  };
+  meta: {
+    members: Array<{ id: string; name: string; avatarUrl: string | null }>;
+    closedAt: string | null;
+    canClose: boolean;
+  };
+};
+
 export const createApiClient = (initData: string) => {
-  const rawUrl =
-    (import.meta.env.VITE_API_URL as string) || "http://localhost:3001";
+  const isTelegramWebApp = Boolean(window.Telegram?.WebApp);
+  const envUrl = import.meta.env.VITE_API_URL as string | undefined;
+  const shouldIgnoreEnvUrl =
+    isTelegramWebApp ||
+    (envUrl?.includes("localhost") && window.location.hostname !== "localhost");
+
+  const rawUrl = !shouldIgnoreEnvUrl && envUrl ? envUrl : window.location.origin;
   const baseUrl = rawUrl.endsWith("/") ? rawUrl.slice(0, -1) : rawUrl;
 
   const request = async <T>(
@@ -112,7 +170,19 @@ export const createApiClient = (initData: string) => {
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(text || res.statusText);
+      let extracted: string | null = null;
+      if (text) {
+        try {
+          const parsed = JSON.parse(text) as any;
+          const msg = parsed?.message;
+          if (msg) {
+            extracted = Array.isArray(msg) ? msg.join(", ") : String(msg);
+          }
+        } catch {
+          // ignore
+        }
+      }
+      throw new Error(extracted || text || res.statusText);
     }
     return res.json() as Promise<T>;
   };
@@ -130,13 +200,16 @@ export const createApiClient = (initData: string) => {
     listGroups: () => request<Group[]>("/groups"),
     createGroup: async (payload: {
       name: string;
-      currency?: string;
+      settlementCurrency?: string;
+      homeCurrency?: string;
       image?: File;
     }) => {
       if (payload.image) {
         const formData = new FormData();
         formData.append("name", payload.name);
-        if (payload.currency) formData.append("currency", payload.currency);
+        if (payload.settlementCurrency)
+          formData.append("settlementCurrency", payload.settlementCurrency);
+        if (payload.homeCurrency) formData.append("homeCurrency", payload.homeCurrency);
         formData.append("image", payload.image);
         const res = await fetch(`${baseUrl}/groups`, {
           method: "POST",
@@ -153,6 +226,8 @@ export const createApiClient = (initData: string) => {
         id: string;
         name: string;
         currency: string;
+        settlementCurrency?: string;
+        homeCurrency?: string;
         membersCount: number;
       }>(`/groups/invite/${inviteCode}`),
     joinGroup: (inviteCode: string) =>
@@ -161,12 +236,23 @@ export const createApiClient = (initData: string) => {
       request<GroupBalance>(`/groups/${groupId}/balance`),
     updateGroup: async (
       groupId: string,
-      payload: { name?: string; currency?: string; image?: File }
+      payload: {
+        name?: string;
+        settlementCurrency?: string;
+        homeCurrency?: string;
+        fxMode?: string;
+        fixedFxRates?: any;
+        fixedFxDate?: string;
+        fixedFxSource?: string;
+        image?: File;
+      }
     ) => {
       if (payload.image) {
         const formData = new FormData();
         if (payload.name) formData.append("name", payload.name);
-        if (payload.currency) formData.append("currency", payload.currency);
+        if (payload.settlementCurrency)
+          formData.append("settlementCurrency", payload.settlementCurrency);
+        if (payload.homeCurrency) formData.append("homeCurrency", payload.homeCurrency);
         formData.append("image", payload.image);
         const res = await fetch(`${baseUrl}/groups/${groupId}`, {
           method: "PATCH",
@@ -187,6 +273,10 @@ export const createApiClient = (initData: string) => {
       request<{ success: boolean }>(`/groups/${groupId}/leave`, {
         method: "POST",
       }),
+    closeGroup: (groupId: string) =>
+      request<{ success: boolean }>(`/groups/${groupId}/close`, {
+        method: "POST",
+      }),
     getGroupExpenses: (groupId: string) =>
       request<GroupTransaction[]>(`/expenses/group/${groupId}`),
     createExpense: (payload: {
@@ -194,6 +284,8 @@ export const createApiClient = (initData: string) => {
       description: string;
       amount: number;
       currency: string;
+      originalAmount?: number;
+      originalCurrency?: string;
       shares: { userId: string; paid: number; owed: number }[];
     }) =>
       request<{ id: string }>("/expenses", { method: "POST", body: payload }),
@@ -224,5 +316,22 @@ export const createApiClient = (initData: string) => {
         method: "POST",
         body: payload,
       }),
+
+    createTripPassInvoice: (payload: { groupId: string; splitCost: boolean }) =>
+      request<{ invoiceLink: string; purchaseId: string }>(
+        "/monetization/trip-pass/invoice",
+        { method: "POST", body: payload }
+      ),
+    getTripPassStatus: (groupId: string) =>
+      request<{ active: boolean; endsAt?: string }>(
+        `/monetization/trip-pass/status?groupId=${encodeURIComponent(groupId)}`
+      ),
+    devConfirmTripPass: (purchaseId: string) =>
+      request<{ active: boolean; endsAt?: string }>(
+        "/monetization/trip-pass/dev/confirm",
+        { method: "POST", body: { purchaseId } }
+      ),
+    getTripSummary: (groupId: string) =>
+      request<TripSummary>(`/groups/${groupId}/trip-summary`),
   };
 };

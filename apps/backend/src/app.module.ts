@@ -9,6 +9,7 @@ import { SettlementsModule } from "./settlements/settlements.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { BotModule } from "./bot/bot.module";
 import { UploadModule } from "./upload/upload.module";
+import { MonetizationModule } from "./monetization/monetization.module";
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { UploadModule } from "./upload/upload.module";
     GroupsModule,
     ExpensesModule,
     SettlementsModule,
+    MonetizationModule,
     BotModule,
   ],
   controllers: [AppController],

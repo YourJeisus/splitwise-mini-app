@@ -28,6 +28,14 @@ export class CreateExpenseDto {
   currency?: string;
 
   @IsOptional()
+  @IsNumber()
+  originalAmount?: number;
+
+  @IsOptional()
+  @IsString()
+  originalCurrency?: string;
+
+  @IsOptional()
   @IsString()
   category?: string;
 

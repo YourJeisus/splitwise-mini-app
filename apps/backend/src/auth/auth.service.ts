@@ -7,14 +7,19 @@ import { Telegraf } from "telegraf";
 @Injectable()
 export class AuthService {
   private bot: Telegraf | null = null;
+  private readonly isTestEnv: boolean;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService
   ) {
-    const token = this.config.get<string>("BOT_TOKEN");
+    const isDev = this.config.get<string>("NODE_ENV") === "development";
+    this.isTestEnv = this.config.get<string>("TELEGRAM_TEST_ENV") === "true";
+    const token =
+      (isDev && this.config.get<string>("BOT_TOKEN_DEV")) ||
+      this.config.get<string>("BOT_TOKEN");
     if (token) {
-      this.bot = new Telegraf(token);
+      this.bot = new Telegraf(token, { telegram: { testEnv: this.isTestEnv } });
     }
   }
 
@@ -44,11 +49,13 @@ export class AuthService {
   }
 
   async verify(initData: string) {
-    const botToken = this.config.get<string>("BOT_TOKEN");
     const isDev = this.config.get<string>("NODE_ENV") === "development";
+    const botToken =
+      (isDev && this.config.get<string>("BOT_TOKEN_DEV")) ||
+      this.config.get<string>("BOT_TOKEN");
 
     // Dev mode: если initData начинается с "dev_", обходим проверку
-    if (isDev && initData.startsWith("dev_")) {
+    if ((isDev || this.isTestEnv) && initData.startsWith("dev_")) {
       const devUserId = initData.replace("dev_", "") || "123456789";
       const devUsers: Record<
         string,

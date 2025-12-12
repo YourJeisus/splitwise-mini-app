@@ -6,7 +6,11 @@ export class CreateGroupDto {
 
   @IsOptional()
   @IsString()
-  currency?: string;
+  settlementCurrency?: string;
+
+  @IsOptional()
+  @IsString()
+  homeCurrency?: string;
 
   @IsOptional()
   @IsArray()

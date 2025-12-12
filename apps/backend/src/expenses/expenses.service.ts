@@ -2,33 +2,141 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateExpenseDto } from "./dto/create-expense.dto";
+
+const TRIP_PASS_PRODUCT_CODE = "TRIP_PASS_21D";
 
 @Injectable()
 export class ExpensesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private round2(value: number): number {
+    return Math.round((value + Number.EPSILON) * 100) / 100;
+  }
+
+  private mapExpenseForApi(expense: any) {
+    return {
+      ...expense,
+      amount: expense.settlementAmount,
+      currency: expense.settlementCurrency,
+    };
+  }
+
   async create(userId: string, dto: CreateExpenseDto) {
-    return this.prisma.expense.create({
-      data: {
-        description: dto.description,
-        amount: dto.amount,
-        currency: dto.currency ?? "USD",
-        category: dto.category,
-        groupId: dto.groupId,
-        createdById: userId,
-        shares: {
-          create: dto.shares.map((share) => ({
-            userId: share.userId,
-            paid: share.paid,
-            owed: share.owed,
-          })),
+    const group = dto.groupId
+      ? await this.prisma.group.findUnique({
+          where: { id: dto.groupId },
+          select: {
+            settlementCurrency: true,
+            fxMode: true,
+            fixedFxRates: true,
+            fixedFxDate: true,
+            fixedFxSource: true,
+            closedAt: true,
+          },
+        })
+      : null;
+
+    if (group?.closedAt) {
+      throw new BadRequestException("Группа закрыта");
+    }
+
+    const settlementCurrency =
+      group?.settlementCurrency ?? dto.currency ?? "USD";
+
+    if (dto.currency && dto.currency !== settlementCurrency) {
+      throw new BadRequestException(
+        "Валюта траты должна совпадать с валютой расчётов группы"
+      );
+    }
+
+    const settlementAmount = this.round2(dto.amount);
+    const originalCurrency = dto.originalCurrency ?? settlementCurrency;
+    const originalAmount = this.round2(dto.originalAmount ?? dto.amount);
+
+    let fxRate: number | null = null;
+    let fxDate: Date | null = null;
+    let fxSource: string | null = null;
+
+    if (originalCurrency !== settlementCurrency) {
+      if (!dto.groupId) {
+        throw new BadRequestException("Мультивалюта доступна только в группе");
+      }
+      const now = new Date();
+      const entitlement = await this.prisma.entitlement.findFirst({
+        where: {
+          groupId: dto.groupId,
+          productCode: TRIP_PASS_PRODUCT_CODE,
+          endsAt: { gt: now },
         },
-      },
-      include: { shares: true },
+        select: { id: true },
+      });
+      if (!entitlement) {
+        throw new BadRequestException("Мультивалютные траты доступны с Trip Pass");
+      }
+      if (group?.fxMode !== "FIXED") {
+        throw new BadRequestException("FX режим не поддерживается");
+      }
+      const rates = (group.fixedFxRates ?? {}) as Record<string, number>;
+      const rate = rates[originalCurrency];
+      if (!rate) {
+        throw new BadRequestException(
+          `Нет фиксированного курса для ${originalCurrency}`
+        );
+      }
+      fxRate = rate;
+      fxDate = group.fixedFxDate ?? new Date();
+      fxSource = group.fixedFxSource ?? "FIXED";
+
+      const expectedSettlement = this.round2(originalAmount * rate);
+      if (Math.abs(expectedSettlement - settlementAmount) > 0.01) {
+        throw new BadRequestException("Некорректная сумма после конвертации");
+      }
+    } else {
+      fxRate = 1;
+      fxSource = "SETTLEMENT";
+    }
+
+    const now = new Date();
+    const expense = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.expense.create({
+        data: {
+          description: dto.description,
+          settlementAmount,
+          settlementCurrency,
+          originalAmount,
+          originalCurrency,
+          fxRate,
+          fxDate,
+          fxSource,
+          category: dto.category,
+          groupId: dto.groupId,
+          createdById: userId,
+          shares: {
+            create: dto.shares.map((share) => ({
+              userId: share.userId,
+              paid: share.paid,
+              owed: share.owed,
+            })),
+          },
+        },
+        include: { shares: true },
+      });
+
+      if (dto.groupId) {
+        await tx.group.update({
+          where: { id: dto.groupId },
+          data: { lastActivityAt: now },
+        });
+      }
+
+      return created;
     });
+
+    return this.mapExpenseForApi(expense);
   }
 
   async listByGroup(groupId: string) {
@@ -65,7 +173,10 @@ export class ExpensesService {
 
     // Объединяем и сортируем по дате
     const combined = [
-      ...expenses.map((e) => ({ ...e, type: "expense" as const })),
+      ...expenses.map((e) => ({
+        ...this.mapExpenseForApi(e),
+        type: "expense" as const,
+      })),
       ...settlements.map((s) => ({ ...s, type: "settlement" as const })),
     ].sort(
       (a, b) =>
@@ -89,6 +200,9 @@ export class ExpensesService {
     });
 
     if (!expense) throw new NotFoundException("Расход не найден");
+    if (expense.isSystem) {
+      throw new ForbiddenException("Системный расход нельзя редактировать");
+    }
     if (expense.createdById !== userId) {
       throw new ForbiddenException(
         "Только создатель может редактировать расход"
@@ -102,11 +216,18 @@ export class ExpensesService {
       });
     }
 
-    return this.prisma.expense.update({
+    const updated = await this.prisma.expense.update({
       where: { id: expenseId },
       data: {
         ...(dto.description && { description: dto.description }),
-        ...(dto.amount !== undefined && { amount: dto.amount }),
+        ...(dto.amount !== undefined && {
+          settlementAmount: this.round2(dto.amount),
+          originalAmount: this.round2(dto.amount),
+          originalCurrency: expense.settlementCurrency,
+          fxRate: 1,
+          fxDate: null,
+          fxSource: "SETTLEMENT",
+        }),
         ...(dto.shares && {
           shares: {
             create: dto.shares.map((share) => ({
@@ -127,6 +248,8 @@ export class ExpensesService {
         },
       },
     });
+
+    return this.mapExpenseForApi(updated);
   }
 
   async delete(userId: string, expenseId: string) {
@@ -135,6 +258,9 @@ export class ExpensesService {
     });
 
     if (!expense) throw new NotFoundException("Расход не найден");
+    if (expense.isSystem) {
+      throw new ForbiddenException("Системный расход нельзя удалять");
+    }
     if (expense.createdById !== userId) {
       throw new ForbiddenException("Только создатель может удалить расход");
     }
