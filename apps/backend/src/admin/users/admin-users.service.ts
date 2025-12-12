@@ -54,12 +54,34 @@ export class AdminUsersService {
           _count: {
             select: { purchases: true, groupMembers: true },
           },
+          groupMembers: {
+            select: { groupId: true },
+          },
         },
       }),
       this.prisma.user.count({ where }),
     ]);
 
-    return { items, total, page, limit };
+    // Подсчитываем активные Trip Pass для каждого пользователя
+    const now = new Date();
+    const allGroupIds = items.flatMap(u => u.groupMembers.map(gm => gm.groupId));
+    const activeEntitlements = await this.prisma.entitlement.findMany({
+      where: {
+        groupId: { in: allGroupIds },
+        productCode: 'TRIP_PASS_21D',
+        endsAt: { gt: now },
+      },
+      select: { groupId: true },
+    });
+    const groupsWithTripPass = new Set(activeEntitlements.map(e => e.groupId));
+
+    const itemsWithTripPassCount = items.map(u => {
+      const activeTripPasses = u.groupMembers.filter(gm => groupsWithTripPass.has(gm.groupId)).length;
+      const { groupMembers: _, ...rest } = u;
+      return { ...rest, activeTripPasses };
+    });
+
+    return { items: itemsWithTripPassCount, total, page, limit };
   }
 
   async getUser(id: string) {

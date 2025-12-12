@@ -404,3 +404,25 @@
   color: #fff;
 }
 
+.revoke-btn {
+  padding: 6px 12px;
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.revoke-btn:hover {
+  background: #c0392b;
+}
+
+.danger-btn {
+  background: #e74c3c !important;
+}
+
+.danger-btn:hover {
+  background: #c0392b !important;
+}
+

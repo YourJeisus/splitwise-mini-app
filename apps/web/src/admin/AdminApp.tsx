@@ -234,6 +234,7 @@ function UsersTab({ role }: { role: string }) {
                 <th>Telegram</th>
                 <th>Имя</th>
                 <th>GodMode</th>
+                <th>Trip Pass</th>
                 <th>Покупок</th>
                 <th>Групп</th>
               </tr>
@@ -245,6 +246,7 @@ function UsersTab({ role }: { role: string }) {
                   <td>{u.telegramId}</td>
                   <td>{u.firstName} {u.lastName}</td>
                   <td>{u.godModeEnabled ? "✅" : ""}</td>
+                  <td>{u.activeTripPasses > 0 ? `✅ ${u.activeTripPasses}` : ""}</td>
                   <td>{u._count?.purchases || 0}</td>
                   <td>{u._count?.groupMembers || 0}</td>
                 </tr>
@@ -264,13 +266,24 @@ function UsersTab({ role }: { role: string }) {
 
 function UserCard({ user, canEdit, onBack }: { user: any; canEdit: boolean; onBack: () => void }) {
   const [reason, setReason] = useState("");
-  const [showModal, setShowModal] = useState<"godmode" | "grant" | null>(null);
+  const [showModal, setShowModal] = useState<"godmode" | "revoke" | null>(null);
+  const [selectedEntitlement, setSelectedEntitlement] = useState<any>(null);
 
   const handleGodMode = async (enabled: boolean) => {
     if (!reason.trim()) return alert("Укажите причину");
     await adminApi.toggleGodMode(user.id, enabled, reason);
     setShowModal(null);
     setReason("");
+    onBack();
+  };
+
+  const handleRevokeEntitlement = async () => {
+    if (!reason.trim()) return alert("Укажите причину");
+    if (!selectedEntitlement) return;
+    await adminApi.revokeEntitlement(selectedEntitlement.id, reason);
+    setShowModal(null);
+    setReason("");
+    setSelectedEntitlement(null);
     onBack();
   };
 
@@ -283,6 +296,7 @@ function UserCard({ user, canEdit, onBack }: { user: any; canEdit: boolean; onBa
         <p><strong>Telegram ID:</strong> {user.telegramId}</p>
         <p><strong>GodMode:</strong> {user.godModeEnabled ? "Включён ✅" : "Выключен"}</p>
         <p><strong>Последняя активность:</strong> {user.lastActiveAt ? new Date(user.lastActiveAt).toLocaleString() : "—"}</p>
+        <p><strong>Групп:</strong> {user.groupMembers?.length || 0}</p>
       </div>
 
       {canEdit && (
@@ -293,17 +307,55 @@ function UserCard({ user, canEdit, onBack }: { user: any; canEdit: boolean; onBa
         </div>
       )}
 
-      <h3>Активные entitlements</h3>
+      <h3>Активные Trip Pass ({user.activeEntitlements?.length || 0})</h3>
       {user.activeEntitlements?.length > 0 ? (
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Продукт</th>
+              <th>Группа</th>
+              <th>До</th>
+              {canEdit && <th>Действия</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {user.activeEntitlements.map((e: any) => (
+              <tr key={e.id}>
+                <td>{e.product?.title || e.productCode}</td>
+                <td>{e.group?.name || e.groupId}</td>
+                <td>{new Date(e.endsAt).toLocaleDateString()}</td>
+                {canEdit && (
+                  <td>
+                    <button
+                      className="revoke-btn"
+                      onClick={() => {
+                        setSelectedEntitlement(e);
+                        setShowModal("revoke");
+                      }}
+                    >
+                      Отозвать
+                    </button>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p>Нет активных Trip Pass</p>
+      )}
+
+      <h3>Группы пользователя</h3>
+      {user.groupMembers?.length > 0 ? (
         <ul>
-          {user.activeEntitlements.map((e: any) => (
-            <li key={e.id}>
-              {e.product?.title} — {e.group?.name} (до {new Date(e.endsAt).toLocaleDateString()})
+          {user.groupMembers.map((gm: any) => (
+            <li key={gm.groupId}>
+              {gm.group?.name} ({gm.group?.settlementCurrency}) {gm.group?.closedAt ? "— закрыта" : ""}
             </li>
           ))}
         </ul>
       ) : (
-        <p>Нет активных</p>
+        <p>Нет групп</p>
       )}
 
       {showModal === "godmode" && (
@@ -318,6 +370,27 @@ function UserCard({ user, canEdit, onBack }: { user: any; canEdit: boolean; onBa
             <div className="modal-actions">
               <button onClick={() => setShowModal(null)}>Отмена</button>
               <button onClick={() => handleGodMode(!user.godModeEnabled)}>Подтвердить</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showModal === "revoke" && selectedEntitlement && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h3>Отозвать Trip Pass</h3>
+            <p>
+              <strong>Группа:</strong> {selectedEntitlement.group?.name}<br />
+              <strong>До:</strong> {new Date(selectedEntitlement.endsAt).toLocaleDateString()}
+            </p>
+            <textarea
+              placeholder="Причина отзыва (обязательно)"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+            <div className="modal-actions">
+              <button onClick={() => { setShowModal(null); setSelectedEntitlement(null); }}>Отмена</button>
+              <button className="danger-btn" onClick={handleRevokeEntitlement}>Отозвать</button>
             </div>
           </div>
         </div>
