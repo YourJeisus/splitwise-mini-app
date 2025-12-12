@@ -398,7 +398,7 @@ function GroupsTab() {
   );
 }
 
-function SalesTab({ role }: { role: string }) {
+function SalesTab({ role: _role }: { role: string }) {
   const [purchases, setPurchases] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
