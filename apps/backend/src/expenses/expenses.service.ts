@@ -11,7 +11,7 @@ import {
   CreateReceiptDto,
   ClaimReceiptItemsDto,
 } from "./dto/create-receipt.dto";
-import * as sharp from "sharp";
+import sharp from "sharp";
 import { ReceiptStatus } from "@prisma/client";
 
 const TRIP_PASS_PRODUCT_CODE = "TRIP_PASS_21D";
@@ -611,6 +611,7 @@ NO markdown, NO explanation, ONLY JSON.`;
         items?: Array<{
           name: string;
           qty?: number;
+          quantity?: number;
           totalPrice?: number;
           price?: number;
         }>;

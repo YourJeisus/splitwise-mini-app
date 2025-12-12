@@ -3,13 +3,13 @@ import { Type } from 'class-transformer';
 
 class ReceiptItemDto {
   @IsString()
-  name: string;
+  name!: string;
 
   @IsNumber()
-  quantity: number;
+  quantity!: number;
 
   @IsNumber()
-  totalPrice: number;
+  totalPrice!: number;
 
   @IsOptional()
   @IsNumber()
@@ -18,36 +18,36 @@ class ReceiptItemDto {
 
 class MyClaimDto {
   @IsNumber()
-  itemIndex: number;
+  itemIndex!: number;
 
   @IsNumber()
-  quantity: number;
+  quantity!: number;
 }
 
 export class CreateReceiptDto {
   @IsString()
-  groupId: string;
+  groupId!: string;
 
   @IsString()
-  description: string;
+  description!: string;
 
   @IsNumber()
-  totalAmount: number;
+  totalAmount!: number;
 
   @IsString()
-  currency: string;
+  currency!: string;
 
   @IsOptional()
   @IsString()
   date?: string;
 
   @IsString()
-  paidByUserId: string;
+  paidByUserId!: string;
 
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ReceiptItemDto)
-  items: ReceiptItemDto[];
+  items!: ReceiptItemDto[];
 
   @IsOptional()
   @IsArray()
@@ -58,22 +58,22 @@ export class CreateReceiptDto {
 
 class ClaimDto {
   @IsString()
-  itemId: string;
+  itemId!: string;
 
   @IsNumber()
-  quantity: number;
+  quantity!: number;
 }
 
 export class ClaimReceiptItemsDto {
   @IsString()
-  receiptId: string;
+  receiptId!: string;
 
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ClaimDto)
-  claims: ClaimDto[];
+  claims!: ClaimDto[];
 
   @IsOptional()
   @IsString()
-  forUserId?: string; // Для распределения за другого пользователя (только создатель чека)
+  forUserId?: string;
 }
