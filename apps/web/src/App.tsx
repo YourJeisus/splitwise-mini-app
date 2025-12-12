@@ -472,14 +472,14 @@ function App() {
   const [tripPassComingSoon, setTripPassComingSoon] = useState<null | {
     title: string;
   }>(null);
-  const [tripPassSplitCost, setTripPassSplitCost] = useState(false);
+  const [, setTripPassSplitCost] = useState(false);
   const [showTripPassSplitModal, setShowTripPassSplitModal] = useState(false);
   const [lastPurchaseId, setLastPurchaseId] = useState<string | null>(null);
 
   // Receipt scanning flow
   type ScanStep = "select" | "processing" | "edit" | "distribute" | "confirm";
   const [scanStep, setScanStep] = useState<ScanStep | null>(null);
-  const [scanImage, setScanImage] = useState<File | null>(null);
+  const [, setScanImage] = useState<File | null>(null);
   interface ScanItem {
     id: string;
     name: string;
@@ -949,10 +949,11 @@ function App() {
     setTripPassUpsell({ reason });
   };
 
-  const openTripPassComingSoonModal = (title: string) => {
+  const _openTripPassComingSoonModal = (title: string) => {
     setTripPassUpsell(null);
     setTripPassComingSoon({ title });
   };
+  void _openTripPassComingSoonModal;
 
   const handleBuyTripPass = async (openSummaryAfter = false) => {
     if (!selectedGroup) return;
