@@ -171,6 +171,19 @@ export class GroupsService {
       },
     });
 
+    // Получаем активные entitlements для всех групп пользователя
+    const now = new Date();
+    const groupIds = memberships.map((m) => m.group.id);
+    const activeEntitlements = await this.prisma.entitlement.findMany({
+      where: {
+        groupId: { in: groupIds },
+        productCode: TRIP_PASS_PRODUCT_CODE,
+        endsAt: { gt: now },
+      },
+      select: { groupId: true },
+    });
+    const groupsWithTripPass = new Set(activeEntitlements.map((e) => e.groupId));
+
     return memberships.map((member) => {
       // Рассчитываем баланс пользователя в этой группе
       let userBalance = 0;
@@ -204,6 +217,7 @@ export class GroupsService {
         userBalance,
         closedAt: member.group.closedAt?.toISOString() || null,
         lastActivityAt: member.group.lastActivityAt?.toISOString() || null,
+        hasTripPass: groupsWithTripPass.has(member.group.id),
       };
     });
   }
@@ -671,21 +685,6 @@ export class GroupsService {
       },
     });
     if (!group) throw new NotFoundException("Группа не найдена");
-
-    // Проверяем доступ: Trip Pass активен ИЛИ группа закрыта
-    const now = new Date();
-    const entitlement = await this.prisma.entitlement.findFirst({
-      where: {
-        groupId,
-        productCode: TRIP_PASS_PRODUCT_CODE,
-        endsAt: { gt: now },
-      },
-      select: { id: true },
-    });
-    const hasAccess = !!entitlement || !!group.closedAt;
-    if (!hasAccess) {
-      throw new ForbiddenException("Итоги доступны с Trip Pass или после закрытия поездки");
-    }
 
     // Подтягиваем FX для домашней валюты (расширенная логика)
     const fxInfo = await this.ensureHomeFxRateForSummary(groupId);

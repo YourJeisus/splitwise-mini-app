@@ -67,18 +67,18 @@ async function main() {
     where: { code: 'TRIP_PASS_21D' },
     update: {
       title: 'Trip Pass (21 день)',
-      starsPrice: 399,
+      starsPrice: 1,
       durationDays: 21,
       active: true,
-      priceBySettlementCurrency: { RUB: 399.0, USD: 4.99 }
+      priceBySettlementCurrency: { RUB: 1.0, USD: 0.01, GEL: 0.01 }
     },
     create: {
       code: 'TRIP_PASS_21D',
       title: 'Trip Pass (21 день)',
-      starsPrice: 399,
+      starsPrice: 1,
       durationDays: 21,
       active: true,
-      priceBySettlementCurrency: { RUB: 399.0, USD: 4.99 }
+      priceBySettlementCurrency: { RUB: 1.0, USD: 0.01, GEL: 0.01 }
     }
   });
 
@@ -169,7 +169,7 @@ async function seedGroup345() {
       groupId: group345.id,
       buyerUserId: devAlex.id,
       invoicePayload: 'seed_tp_345',
-      starsAmount: 399,
+      starsAmount: 1,
       currency: 'XTR',
       status: 'PAID',
       splitCost: false,

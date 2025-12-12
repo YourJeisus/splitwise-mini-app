@@ -32,6 +32,7 @@ export type Group = {
   userBalance?: number;
   closedAt?: string | null;
   lastActivityAt?: string | null;
+  hasTripPass?: boolean;
 };
 
 export type GroupBalance = {
@@ -145,14 +146,112 @@ export type TripSummary = {
   };
 };
 
-export const createApiClient = (initData: string) => {
-  const isTelegramWebApp = Boolean(window.Telegram?.WebApp);
-  const envUrl = import.meta.env.VITE_API_URL as string | undefined;
-  const shouldIgnoreEnvUrl =
-    isTelegramWebApp ||
-    (envUrl?.includes("localhost") && window.location.hostname !== "localhost");
+export type ScanReceiptResult = {
+  amount?: number;
+  currency?: string;
+  date?: string;
+  items?: Array<{ name: string; qty?: number; totalPrice?: number }>;
+  warnings?: string[];
+};
 
-  const rawUrl = !shouldIgnoreEnvUrl && envUrl ? envUrl : window.location.origin;
+export type ReceiptItemClaim = {
+  id: string;
+  userId: string;
+  quantity: number;
+  user: {
+    id: string;
+    firstName?: string;
+    username?: string;
+    avatarUrl?: string;
+  };
+};
+
+export type ReceiptItem = {
+  id: string;
+  name: string;
+  quantity: number;
+  totalPrice: number;
+  unitPrice: number | null;
+  sortOrder: number;
+  claims: ReceiptItemClaim[];
+  claimedQuantity: number;
+  remainingQuantity: number;
+  isFullyClaimed: boolean;
+};
+
+export type ReceiptMember = {
+  id: string;
+  firstName?: string;
+  username?: string;
+  avatarUrl?: string;
+};
+
+export type Receipt = {
+  id: string;
+  expenseId: string;
+  totalAmount: number;
+  currency: string;
+  date: string | null;
+  status: "PENDING" | "DISTRIBUTED" | "FINALIZED";
+  createdAt: string;
+  expense: {
+    id: string;
+    description: string;
+    createdBy: ReceiptMember;
+    group: {
+      id: string;
+      name: string;
+      settlementCurrency: string;
+    } | null;
+  };
+  items: ReceiptItem[];
+  stats: {
+    totalClaimed: number;
+    totalRemaining: number;
+    isFullyDistributed: boolean;
+    owedByUser: Record<string, number>;
+    paidByUser: Record<string, number>;
+    claimedUserIds: string[];
+    isPreliminary: boolean;
+  };
+  members: ReceiptMember[];
+};
+
+export type CreateReceiptPayload = {
+  groupId: string;
+  description: string;
+  totalAmount: number;
+  currency: string;
+  date?: string;
+  paidByUserId: string;
+  items: Array<{
+    name: string;
+    quantity: number;
+    totalPrice: number;
+    unitPrice?: number;
+  }>;
+  myClaims?: Array<{
+    itemIndex: number;
+    quantity: number;
+  }>;
+};
+
+export type ClaimReceiptItemsPayload = {
+  receiptId: string;
+  claims: Array<{
+    itemId: string;
+    quantity: number;
+  }>;
+  forUserId?: string; // Для распределения за другого пользователя (только создатель чека)
+};
+
+export const createApiClient = (initData: string) => {
+  const envUrl = import.meta.env.VITE_API_URL as string | undefined;
+  const isDev = import.meta.env.DEV;
+  
+  // В dev всегда используем VITE_API_URL если задан
+  // В prod (Telegram WebApp) используем origin
+  const rawUrl = isDev && envUrl ? envUrl : (envUrl || window.location.origin);
   const baseUrl = rawUrl.endsWith("/") ? rawUrl.slice(0, -1) : rawUrl;
 
   const request = async <T>(
@@ -322,6 +421,11 @@ export const createApiClient = (initData: string) => {
         "/monetization/trip-pass/invoice",
         { method: "POST", body: payload }
       ),
+    enableTripPassSplit: (purchaseId: string) =>
+      request<{ success: boolean }>(
+        "/monetization/trip-pass/enable-split",
+        { method: "POST", body: { purchaseId } }
+      ),
     getTripPassStatus: (groupId: string) =>
       request<{ active: boolean; endsAt?: string }>(
         `/monetization/trip-pass/status?groupId=${encodeURIComponent(groupId)}`
@@ -331,7 +435,76 @@ export const createApiClient = (initData: string) => {
         "/monetization/trip-pass/dev/confirm",
         { method: "POST", body: { purchaseId } }
       ),
+    devToggleTripPass: (groupId: string, active: boolean) =>
+      request<{ active: boolean; endsAt?: string }>(
+        "/monetization/trip-pass/dev/toggle",
+        { method: "POST", body: { groupId, active } }
+      ),
     getTripSummary: (groupId: string) =>
       request<TripSummary>(`/groups/${groupId}/trip-summary`),
+    scanReceipt: async (groupId: string, image: File) => {
+      const formData = new FormData();
+      formData.append("groupId", groupId);
+      formData.append("image", image);
+      const res = await fetch(`${baseUrl}/expenses/receipt/scan`, {
+        method: "POST",
+        headers: { "x-telegram-init-data": initData },
+        body: formData,
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        let extracted: string | null = null;
+        if (text) {
+          try {
+            const parsed = JSON.parse(text) as any;
+            const msg = parsed?.message;
+            if (msg) {
+              extracted = Array.isArray(msg) ? msg.join(", ") : String(msg);
+            }
+          } catch {
+            // ignore
+          }
+        }
+        throw new Error(extracted || text || res.statusText);
+      }
+      return res.json() as Promise<ScanReceiptResult>;
+    },
+
+    // ========== RECEIPT API ==========
+    createReceipt: (payload: CreateReceiptPayload) =>
+      request<Receipt>("/expenses/receipt", { method: "POST", body: payload }),
+
+    getReceipt: (receiptId: string) =>
+      request<Receipt>(`/expenses/receipt/${receiptId}`),
+
+    getReceiptByExpense: (expenseId: string) =>
+      request<Receipt | null>(`/expenses/receipt/by-expense/${expenseId}`),
+
+    listGroupReceipts: (groupId: string) =>
+      request<Array<{
+        id: string;
+        expenseId: string;
+        totalAmount: number;
+        currency: string;
+        status: "PENDING" | "DISTRIBUTED" | "FINALIZED";
+        createdAt: string;
+        expense: {
+          id: string;
+          description: string;
+          createdById: string;
+          createdBy: ReceiptMember;
+        };
+        stats: {
+          totalClaimed: number;
+          totalRemaining: number;
+          itemsCount: number;
+        };
+      }>>(`/expenses/receipts/group/${groupId}`),
+
+    claimReceiptItems: (payload: ClaimReceiptItemsPayload) =>
+      request<Receipt>("/expenses/receipt/claim", { method: "POST", body: payload }),
+
+    finalizeReceipt: (receiptId: string) =>
+      request<Receipt>(`/expenses/receipt/${receiptId}/finalize`, { method: "POST" }),
   };
 };

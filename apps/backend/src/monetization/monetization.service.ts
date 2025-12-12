@@ -362,6 +362,143 @@ export class MonetizationService {
     if (!entitlement) return { active: false };
     return { active: true, endsAt: entitlement.endsAt.toISOString() };
   }
+
+  async devToggleTripPass(params: { groupId: string; userId: string; active: boolean }) {
+    if (!this.isDev && !this.isTestEnv)
+      throw new ForbiddenException("Dev endpoint disabled");
+
+    const member = await this.prisma.groupMember.findFirst({
+      where: { groupId: params.groupId, userId: params.userId, isActive: true },
+      select: { id: true },
+    });
+    if (!member) throw new ForbiddenException("Нет доступа к группе");
+
+    if (params.active) {
+      // Включаем: создаём или продлеваем entitlement
+      const now = new Date();
+      const endsAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // +1 год
+      const existing = await this.prisma.entitlement.findFirst({
+        where: { groupId: params.groupId, productCode: TRIP_PASS_PRODUCT_CODE },
+      });
+      if (existing) {
+        await this.prisma.entitlement.update({
+          where: { id: existing.id },
+          data: { endsAt },
+        });
+      } else {
+        // Создаём фиктивный purchase для dev entitlement
+        const devPurchase = await this.prisma.purchase.create({
+          data: {
+            productCode: TRIP_PASS_PRODUCT_CODE,
+            groupId: params.groupId,
+            buyerUserId: params.userId,
+            invoicePayload: `dev_toggle_${crypto.randomUUID()}`,
+            starsAmount: 0,
+            currency: "XTR",
+            status: "PAID",
+            splitCost: false,
+            settlementFeeAmount: 0,
+            settlementCurrency: "USD",
+            paidAt: now,
+          },
+        });
+        await this.prisma.entitlement.create({
+          data: {
+            groupId: params.groupId,
+            productCode: TRIP_PASS_PRODUCT_CODE,
+            startsAt: now,
+            endsAt,
+            purchaseId: devPurchase.id,
+          },
+        });
+      }
+    } else {
+      // Выключаем: устанавливаем endsAt в прошлое
+      await this.prisma.entitlement.updateMany({
+        where: { groupId: params.groupId, productCode: TRIP_PASS_PRODUCT_CODE },
+        data: { endsAt: new Date(0) },
+      });
+    }
+
+    return this.getTripPassStatus(params.groupId, params.userId);
+  }
+
+  async enableTripPassSplit(params: { purchaseId: string; userId: string }) {
+    const purchase = await this.prisma.purchase.findUnique({
+      where: { id: params.purchaseId },
+      include: { product: true },
+    });
+
+    if (!purchase) throw new BadRequestException("Покупка не найдена");
+    if (purchase.buyerUserId !== params.userId) {
+      throw new ForbiddenException("Только покупатель может разделить стоимость");
+    }
+    if (purchase.status !== "PAID") {
+      throw new BadRequestException("Покупка не оплачена");
+    }
+
+    // Проверяем, что expense ещё не создан
+    const existingExpense = await this.prisma.expense.findUnique({
+      where: { purchaseId: params.purchaseId },
+    });
+    if (existingExpense) {
+      throw new ConflictException("Трата уже создана");
+    }
+
+    const members = await this.prisma.groupMember.findMany({
+      where: { groupId: purchase.groupId, isActive: true },
+      select: { userId: true },
+    });
+
+    const memberIds = members.map((m) => m.userId);
+    if (!memberIds.includes(purchase.buyerUserId)) {
+      memberIds.push(purchase.buyerUserId);
+    }
+    if (memberIds.length === 0) {
+      throw new BadRequestException("Нет участников для распределения");
+    }
+
+    const total = Number(purchase.settlementFeeAmount);
+    const totalCents = Math.round(total * 100);
+    const base = Math.floor(totalCents / memberIds.length);
+    const remainder = totalCents - base * memberIds.length;
+
+    const shares = memberIds.map((userId: string) => {
+      const owedCents = base + (userId === purchase.buyerUserId ? remainder : 0);
+      const paidCents = userId === purchase.buyerUserId ? totalCents : 0;
+      return {
+        userId,
+        paid: round2(paidCents / 100),
+        owed: round2(owedCents / 100),
+      };
+    });
+
+    await this.prisma.expense.create({
+      data: {
+        groupId: purchase.groupId,
+        createdById: purchase.buyerUserId,
+        description: "Trip Pass (21 день)",
+        settlementAmount: purchase.settlementFeeAmount,
+        settlementCurrency: purchase.settlementCurrency,
+        originalAmount: purchase.settlementFeeAmount,
+        originalCurrency: purchase.settlementCurrency,
+        fxRate: 1,
+        fxDate: null,
+        fxSource: "SETTLEMENT",
+        isSystem: true,
+        systemType: "TRIP_PASS_FEE",
+        purchaseId: purchase.id,
+        shares: { create: shares },
+      },
+    });
+
+    await this.prisma.purchase.update({
+      where: { id: params.purchaseId },
+      data: { splitCost: true },
+    });
+
+    return { success: true };
+  }
 }
 
 

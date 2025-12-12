@@ -31,6 +31,25 @@ export class MonetizationController {
       purchaseId: body.purchaseId,
     });
   }
+
+  @Post("trip-pass/dev/toggle")
+  devToggleTripPass(@AuthUser() user: any, @Body() body: { groupId: string; active: boolean }) {
+    if (!body?.groupId) throw new BadRequestException("groupId is required");
+    return this.monetizationService.devToggleTripPass({
+      groupId: body.groupId,
+      userId: user.id,
+      active: body.active,
+    });
+  }
+
+  @Post("trip-pass/enable-split")
+  enableTripPassSplit(@AuthUser() user: any, @Body() body: { purchaseId: string }) {
+    if (!body?.purchaseId) throw new BadRequestException("purchaseId is required");
+    return this.monetizationService.enableTripPassSplit({
+      purchaseId: body.purchaseId,
+      userId: user.id,
+    });
+  }
 }
 
 
