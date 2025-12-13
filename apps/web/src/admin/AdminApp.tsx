@@ -271,20 +271,28 @@ function UserCard({ user, canEdit, onBack }: { user: any; canEdit: boolean; onBa
 
   const handleGodMode = async (enabled: boolean) => {
     if (!reason.trim()) return alert("Укажите причину");
-    await adminApi.toggleGodMode(user.id, enabled, reason);
-    setShowModal(null);
-    setReason("");
-    onBack();
+    try {
+      await adminApi.toggleGodMode(user.id, enabled, reason);
+      setShowModal(null);
+      setReason("");
+      onBack();
+    } catch (err) {
+      alert("Ошибка: " + ((err as Error).message || "Неизвестная ошибка"));
+    }
   };
 
   const handleRevokeEntitlement = async () => {
     if (!reason.trim()) return alert("Укажите причину");
     if (!selectedEntitlement) return;
-    await adminApi.revokeEntitlement(selectedEntitlement.id, reason);
-    setShowModal(null);
-    setReason("");
-    setSelectedEntitlement(null);
-    onBack();
+    try {
+      await adminApi.revokeEntitlement(selectedEntitlement.id, reason);
+      setShowModal(null);
+      setReason("");
+      setSelectedEntitlement(null);
+      onBack();
+    } catch (err) {
+      alert("Ошибка: " + ((err as Error).message || "Неизвестная ошибка"));
+    }
   };
 
   return (
@@ -623,31 +631,39 @@ function ProductCard({ product, canEdit, onBack }: { product: any; canEdit: bool
 
   const handleUpdatePricing = async () => {
     if (!reason.trim()) return alert("Укажите причину");
-    await adminApi.updatePricing(product.code, {
-      ...pricingForm,
-      percentOff: pricingForm.percentOff ? parseInt(pricingForm.percentOff as any) : null,
-      starsPriceOverride: pricingForm.starsPriceOverride ? parseInt(pricingForm.starsPriceOverride as any) : null,
-      reason,
-    });
-    setShowPricingModal(false);
-    setReason("");
-    onBack();
+    try {
+      await adminApi.updatePricing(product.code, {
+        ...pricingForm,
+        percentOff: pricingForm.percentOff ? parseInt(pricingForm.percentOff as any) : null,
+        starsPriceOverride: pricingForm.starsPriceOverride ? parseInt(pricingForm.starsPriceOverride as any) : null,
+        reason,
+      });
+      setShowPricingModal(false);
+      setReason("");
+      onBack();
+    } catch (err) {
+      alert("Ошибка: " + ((err as Error).message || "Неизвестная ошибка"));
+    }
   };
 
   const handleCreatePromo = async () => {
     if (!reason.trim()) return alert("Укажите причину");
     if (!promoForm.code.trim()) return alert("Укажите код");
-    await adminApi.createPromoCode(product.code, {
-      ...promoForm,
-      percentOff: promoForm.percentOff ? parseInt(promoForm.percentOff) : undefined,
-      starsPriceOverride: promoForm.starsPriceOverride ? parseInt(promoForm.starsPriceOverride) : undefined,
-      maxRedemptions: promoForm.maxRedemptions ? parseInt(promoForm.maxRedemptions) : undefined,
-      reason,
-    });
-    setShowPromoModal(false);
-    setReason("");
-    setPromoForm({ code: "", discountType: "PERCENT", percentOff: "", starsPriceOverride: "", maxRedemptions: "" });
-    onBack();
+    try {
+      await adminApi.createPromoCode(product.code, {
+        ...promoForm,
+        percentOff: promoForm.percentOff ? parseInt(promoForm.percentOff) : undefined,
+        starsPriceOverride: promoForm.starsPriceOverride ? parseInt(promoForm.starsPriceOverride) : undefined,
+        maxRedemptions: promoForm.maxRedemptions ? parseInt(promoForm.maxRedemptions) : undefined,
+        reason,
+      });
+      setShowPromoModal(false);
+      setReason("");
+      setPromoForm({ code: "", discountType: "PERCENT", percentOff: "", starsPriceOverride: "", maxRedemptions: "" });
+      onBack();
+    } catch (err) {
+      alert("Ошибка: " + ((err as Error).message || "Неизвестная ошибка"));
+    }
   };
 
   return (

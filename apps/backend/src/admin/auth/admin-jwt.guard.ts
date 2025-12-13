@@ -23,7 +23,7 @@ export class AdminJwtGuard implements CanActivate {
     let payload: AdminJwtPayload;
     try {
       payload = this.jwtService.verify<AdminJwtPayload>(token, {
-        secret: this.config.get<string>('ADMIN_JWT_SECRET'),
+        secret: this.config.get<string>('ADMIN_JWT_SECRET') || 'admin-secret-change-me',
       });
     } catch {
       throw new UnauthorizedException('Недействительный токен');
