@@ -168,7 +168,6 @@ export class AdminGroupsService {
       data: {
         group: { connect: { id: groupId } },
         product: { connect: { code: "TRIP_PASS_30D" } },
-        productCode: "TRIP_PASS_30D",
         startsAt: now,
         endsAt,
       },
