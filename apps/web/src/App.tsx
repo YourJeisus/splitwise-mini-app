@@ -3941,7 +3941,12 @@ function MainApp() {
                           }
                         });
 
-                        await api.createReceipt({
+                        // Проверяем, взял ли пользователь все на себя
+                        const allMine = scanResult.items.every(
+                          (item) => (item.distribution?.[myId || ""] || 0) === item.quantity
+                        );
+
+                        const receipt = await api.createReceipt({
                           groupId: selectedGroup,
                           description: scanResult.description || "Чек",
                           totalAmount: scanResult.amount ?? 0,
@@ -3959,6 +3964,11 @@ function MainApp() {
                           })),
                           myClaims,
                         });
+
+                        // Если все позиции на себя - автоматически финализируем чек
+                        if (allMine && receipt?.id) {
+                          await api.finalizeReceipt(receipt.id);
+                        }
                       } else {
                         // Режим поровну - создаём обычный расход
                         const owed = scanResult.amount! / scanSplitParticipants.length;
