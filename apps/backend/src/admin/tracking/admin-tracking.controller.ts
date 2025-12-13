@@ -28,16 +28,21 @@ export class AdminTrackingController {
 
   @Get()
   @Roles("READ_ONLY", "SUPPORT", "ADMIN", "OWNER")
-  list(
+  async list(
     @Query("page") page?: string,
     @Query("search") search?: string,
     @Query("enabled") enabled?: string
   ) {
-    return this.trackingService.list({
-      page: page ? parseInt(page, 10) : 1,
-      search,
-      enabled: enabled !== undefined ? enabled === "true" : undefined,
-    });
+    try {
+      return await this.trackingService.list({
+        page: page ? parseInt(page, 10) : 1,
+        search,
+        enabled: enabled !== undefined ? enabled === "true" : undefined,
+      });
+    } catch (e) {
+      console.error("AdminTrackingController.list error:", e);
+      throw e;
+    }
   }
 
   @Get(":id")
@@ -59,19 +64,24 @@ export class AdminTrackingController {
   @Post()
   @Roles("ADMIN", "OWNER")
   async create(@Body() dto: CreateTrackingLinkDto, @Req() req: any) {
-    const link = await this.trackingService.create(dto);
-    await this.auditService.log({
-      adminId: req.user.id,
-      adminRole: req.user.role,
-      action: "CREATE_TRACKING_LINK",
-      targetType: "TrackingLink",
-      targetId: link.id,
-      after: link,
-      reason: dto.reason,
-      ip: req.ip,
-      userAgent: req.headers["user-agent"],
-    });
-    return link;
+    try {
+      const link = await this.trackingService.create(dto);
+      await this.auditService.log({
+        adminId: req.user.id,
+        adminRole: req.user.role,
+        action: "CREATE_TRACKING_LINK",
+        targetType: "TrackingLink",
+        targetId: link.id,
+        after: link,
+        reason: dto.reason,
+        ip: req.ip,
+        userAgent: req.headers["user-agent"],
+      });
+      return link;
+    } catch (e) {
+      console.error("AdminTrackingController.create error:", e);
+      throw e;
+    }
   }
 
   @Patch(":id")
