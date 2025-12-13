@@ -13,7 +13,7 @@ import {
 import { ReceiptStatus } from "@prisma/client";
 import { OcrService, ScanReceiptResult } from "./services/ocr.service";
 
-const TRIP_PASS_PRODUCT_CODE = "TRIP_PASS_21D";
+const TRIP_PASS_PRODUCT_CODE = "TRIP_PASS_30D";
 
 export type { ScanReceiptResult };
 

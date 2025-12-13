@@ -68,7 +68,7 @@ export class AdminUsersService {
     const activeEntitlements = await this.prisma.entitlement.findMany({
       where: {
         groupId: { in: allGroupIds },
-        productCode: 'TRIP_PASS_21D',
+        productCode: 'TRIP_PASS_30D',
         endsAt: { gt: now },
       },
       select: { groupId: true },

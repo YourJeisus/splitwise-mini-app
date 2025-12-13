@@ -53,7 +53,7 @@ export async function seedGroup345(prisma: PrismaClient) {
     update: {},
     create: {
       id: "00000000-0000-0000-0000-000000000999",
-      productCode: "TRIP_PASS_21D",
+      productCode: "TRIP_PASS_30D",
       groupId: group345.id,
       buyerUserId: devAlex.id,
       invoicePayload: "seed_tp_345",
@@ -73,7 +73,7 @@ export async function seedGroup345(prisma: PrismaClient) {
     create: {
       id: "00000000-0000-0000-0000-000000000998",
       groupId: group345.id,
-      productCode: "TRIP_PASS_21D",
+      productCode: "TRIP_PASS_30D",
       startsAt: now,
       endsAt,
       purchaseId: "00000000-0000-0000-0000-000000000999",

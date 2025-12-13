@@ -10,7 +10,7 @@ import { Telegraf } from "telegraf";
 import crypto from "crypto";
 import { PrismaService } from "../prisma/prisma.service";
 
-const TRIP_PASS_PRODUCT_CODE = "TRIP_PASS_21D";
+const TRIP_PASS_PRODUCT_CODE = "TRIP_PASS_30D";
 
 function addDays(date: Date, days: number): Date {
   const d = new Date(date);

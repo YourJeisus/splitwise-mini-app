@@ -13,7 +13,7 @@ import { CreateGroupDto } from "./dto/create-group.dto";
 const ACTIVE_GROUPS_LIMIT = 2;
 const ACTIVE_GROUPS_LIMIT_MESSAGE =
   "Для нескольких поездок одновременно удобнее Trip Pass или подписка";
-const TRIP_PASS_PRODUCT_CODE = "TRIP_PASS_21D";
+const TRIP_PASS_PRODUCT_CODE = "TRIP_PASS_30D";
 
 // Бесплатный API без ключа (поддерживает RUB)
 const FX_PROVIDER_URL = "https://open.er-api.com/v6/latest";
