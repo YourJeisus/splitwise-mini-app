@@ -1232,14 +1232,12 @@ function MainApp() {
                 </div>
               )}
               <div className="group-item-content">
-                <div className="group-item-name">
-                  {currentGroup.name}
-                  {currentGroup.hasTripPass && !currentGroup.closedAt && (
-                    <span className="group-trip-pass-badge">✨</span>
-                  )}
-                </div>
+                <div className="group-item-name">{currentGroup.name}</div>
                 <div className="group-item-meta">
                   {getCurrencySymbol(currentGroup.currency)}
+                  {currentGroup.hasTripPass && !currentGroup.closedAt && (
+                    <span className="group-trip-pass-badge">Trip Pass</span>
+                  )}
                 </div>
               </div>
               {currentGroup.userBalance !== undefined &&
@@ -1280,14 +1278,12 @@ function MainApp() {
                       </div>
                     )}
                     <div className="group-item-content">
-                      <div className="group-item-name">
-                        {g.name}
-                        {g.hasTripPass && !g.closedAt && (
-                          <span className="group-trip-pass-badge">✨</span>
-                        )}
-                      </div>
+                      <div className="group-item-name">{g.name}</div>
                       <div className="group-item-meta">
                         {getCurrencySymbol(g.currency)}
+                        {g.hasTripPass && !g.closedAt && (
+                          <span className="group-trip-pass-badge">Trip Pass</span>
+                        )}
                       </div>
                     </div>
                     {g.userBalance !== undefined && g.userBalance !== 0 && (
@@ -2637,7 +2633,7 @@ function MainApp() {
                 "..."
               ) : (
                 <>
-                  Купить Trip Pass (21 день)
+                  Купить Trip Pass (30 дней)
                   <span className="trip-pass-price">
                     <span className="old-price">100⭐</span>
                     <span className="new-price">1⭐</span>

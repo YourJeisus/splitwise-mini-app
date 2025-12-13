@@ -691,19 +691,22 @@ textarea {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.group-trip-pass-badge {
-  font-size: 12px;
-  flex-shrink: 0;
 }
 
 .group-item-meta {
   font-size: 13px;
   color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.group-trip-pass-badge {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--accent-purple);
+  margin-left: 4px;
+  opacity: 0.85;
 }
 
 .group-item.active .group-item-meta {
