@@ -376,6 +376,10 @@ export const createApiClient = (initData: string) => {
       request<{ success: boolean }>(`/groups/${groupId}/close`, {
         method: "POST",
       }),
+    reopenGroup: (groupId: string) =>
+      request<{ success: boolean }>(`/groups/${groupId}/reopen`, {
+        method: "POST",
+      }),
     getGroupExpenses: (groupId: string) =>
       request<GroupTransaction[]>(`/expenses/group/${groupId}`),
     createExpense: (payload: {

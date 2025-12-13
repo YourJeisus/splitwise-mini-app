@@ -190,6 +190,25 @@
   font-size: 14px;
 }
 
+.actions-cell {
+  display: flex;
+  gap: 4px;
+}
+
+.action-btn {
+  padding: 4px 8px;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.action-btn:hover {
+  background: #e9ecef;
+}
+
 .status-paid {
   color: #27ae60;
   font-weight: 600;

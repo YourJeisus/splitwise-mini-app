@@ -164,6 +164,33 @@ function GroupsTab() {
     loadGroups();
   }, [loadGroups]);
 
+  const handleGrantTripPass = async (groupId: string) => {
+    const daysStr = prompt("Количество дней Trip Pass (по умолчанию 30):");
+    const days = daysStr ? parseInt(daysStr) : undefined;
+    try {
+      const res = await adminApi.grantTripPass(groupId, days);
+      alert(
+        res.extended
+          ? `Trip Pass продлён до ${new Date(res.endsAt).toLocaleString()}`
+          : `Trip Pass выдан до ${new Date(res.endsAt).toLocaleString()}`
+      );
+      loadGroups();
+    } catch (err) {
+      alert("Ошибка: " + ((err as Error).message || "Неизвестная ошибка"));
+    }
+  };
+
+  const handleReopenGroup = async (groupId: string) => {
+    if (!confirm("Открыть эту группу?")) return;
+    try {
+      await adminApi.reopenGroup(groupId);
+      alert("Группа открыта");
+      loadGroups();
+    } catch (err) {
+      alert("Ошибка: " + ((err as Error).message || "Неизвестная ошибка"));
+    }
+  };
+
   return (
     <div className="groups-tab">
       <div className="search-bar">
@@ -189,6 +216,7 @@ function GroupsTab() {
                 <th>Трат</th>
                 <th>Trip Pass</th>
                 <th>Статус</th>
+                <th>Действия</th>
               </tr>
             </thead>
             <tbody>
@@ -199,8 +227,32 @@ function GroupsTab() {
                   <td>{g.settlementCurrency}</td>
                   <td>{g.membersCount}</td>
                   <td>{g.expensesCount}</td>
-                  <td>{g.tripPassActive ? "✅" : ""}</td>
+                  <td>
+                    {g.tripPassActive ? (
+                      <span title={`До ${new Date(g.tripPassEndsAt).toLocaleString()}`}>✅</span>
+                    ) : (
+                      ""
+                    )}
+                  </td>
                   <td>{g.closedAt ? "Закрыта" : "Активна"}</td>
+                  <td className="actions-cell">
+                    <button
+                      className="action-btn"
+                      onClick={() => handleGrantTripPass(g.id)}
+                      title="Выдать Trip Pass"
+                    >
+                      ✨
+                    </button>
+                    {g.closedAt && (
+                      <button
+                        className="action-btn"
+                        onClick={() => handleReopenGroup(g.id)}
+                        title="Открыть группу"
+                      >
+                        🔓
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

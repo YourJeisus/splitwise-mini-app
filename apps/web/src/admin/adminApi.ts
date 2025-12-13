@@ -166,6 +166,15 @@ export const adminApi = {
     }>(`/admin/groups?${qs}`);
   },
   getGroup: (id: string) => request<any>(`/admin/groups/${id}`),
+  grantTripPass: (groupId: string, durationDays?: number) =>
+    request<{ success: boolean; endsAt: string; extended: boolean }>(
+      `/admin/groups/${groupId}/grant-trip-pass`,
+      { method: "POST", body: { durationDays } }
+    ),
+  reopenGroup: (groupId: string) =>
+    request<{ success: boolean }>(`/admin/groups/${groupId}/reopen`, {
+      method: "POST",
+    }),
 
   // Products
   listProducts: () => request<any[]>("/admin/products"),

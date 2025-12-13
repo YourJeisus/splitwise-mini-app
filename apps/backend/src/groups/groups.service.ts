@@ -701,6 +701,31 @@ export class GroupsService {
     return { success: true };
   }
 
+  async reopenGroup(userId: string, groupId: string) {
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+      select: { id: true, createdById: true, closedAt: true },
+    });
+    if (!group) throw new NotFoundException("Группа не найдена");
+    if (group.createdById !== userId) {
+      throw new ForbiddenException("Только создатель может открыть поездку");
+    }
+    if (!group.closedAt) {
+      throw new ConflictException("Группа не закрыта");
+    }
+
+    // Проверяем лимит активных групп
+    await this.assertActiveGroupsLimit(userId);
+
+    const now = new Date();
+    await this.prisma.group.update({
+      where: { id: groupId },
+      data: { closedAt: null, lastActivityAt: now },
+    });
+
+    return { success: true };
+  }
+
   /**
    * Возвращает итоги поездки (Trip Summary).
    * Доступ: Trip Pass активен ИЛИ группа закрыта.

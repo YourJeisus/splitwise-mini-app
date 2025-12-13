@@ -89,6 +89,12 @@ export class GroupsController {
   }
 
   @UseGuards(TelegramAuthGuard)
+  @Post(":id/reopen")
+  reopen(@AuthUser() user: any, @Param("id") id: string) {
+    return this.groupsService.reopenGroup(user.id, id);
+  }
+
+  @UseGuards(TelegramAuthGuard)
   @Get(":id/balance")
   balance(@Param("id") id: string) {
     return this.groupsService.getBalance(id);

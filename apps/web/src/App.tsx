@@ -872,6 +872,29 @@ function MainApp() {
     }
   };
 
+  const handleReopenGroup = async () => {
+    if (!selectedGroup) return;
+    try {
+      await api.reopenGroup(selectedGroup);
+      setShowEditGroup(false);
+
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
+
+      const [balance, expenses, tpStatus, updatedGroups] = await Promise.all([
+        api.getGroupBalance(selectedGroup),
+        api.getGroupExpenses(selectedGroup),
+        api.getTripPassStatus(selectedGroup),
+        api.listGroups(),
+      ]);
+      setGroupBalance(balance);
+      setGroupExpenses(expenses);
+      setTripPassStatus(tpStatus);
+      setGroups(updatedGroups);
+    } catch (error) {
+      alert(`Ошибка: ${(error as Error).message}`);
+    }
+  };
+
   const handleDeleteGroup = async () => {
     if (!selectedGroup) return;
 
@@ -2373,13 +2396,23 @@ function MainApp() {
               Сохранить
             </button>
 
-            <button
-              type="button"
-              onClick={() => setShowCloseGroupConfirm(true)}
-              className="primary-btn"
-            >
-              Закрыть поездку
-            </button>
+            {currentGroup?.closedAt ? (
+              <button
+                type="button"
+                onClick={handleReopenGroup}
+                className="secondary-btn"
+              >
+                🔓 Открыть поездку
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowCloseGroupConfirm(true)}
+                className="primary-btn"
+              >
+                Закрыть поездку
+              </button>
+            )}
 
             <button
               onClick={() => setShowDeleteConfirm("group")}

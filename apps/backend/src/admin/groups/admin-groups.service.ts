@@ -108,6 +108,72 @@ export class AdminGroupsService {
       settlementsCount: group._count.settlements,
     };
   }
+
+  async grantTripPass(groupId: string, durationDays = 30) {
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+      select: { id: true },
+    });
+    if (!group) throw new NotFoundException('Группа не найдена');
+
+    const product = await this.prisma.product.findFirst({
+      where: { code: 'TRIP_PASS_30D' },
+    });
+    if (!product) throw new NotFoundException('Продукт Trip Pass не найден');
+
+    const now = new Date();
+    const endsAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
+
+    // Проверяем существующий активный Trip Pass
+    const existing = await this.prisma.entitlement.findFirst({
+      where: {
+        groupId,
+        productCode: 'TRIP_PASS_30D',
+        endsAt: { gt: now },
+      },
+    });
+
+    if (existing) {
+      // Продлеваем существующий
+      const newEndsAt = new Date(existing.endsAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
+      await this.prisma.entitlement.update({
+        where: { id: existing.id },
+        data: { endsAt: newEndsAt },
+      });
+      return { success: true, endsAt: newEndsAt, extended: true };
+    }
+
+    // Создаём новый entitlement без покупки (административный грант)
+    await this.prisma.entitlement.create({
+      data: {
+        groupId,
+        productId: product.id,
+        productCode: 'TRIP_PASS_30D',
+        startsAt: now,
+        endsAt,
+      },
+    });
+
+    return { success: true, endsAt, extended: false };
+  }
+
+  async reopenGroup(groupId: string) {
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+      select: { id: true, closedAt: true },
+    });
+    if (!group) throw new NotFoundException('Группа не найдена');
+    if (!group.closedAt) {
+      return { success: true, message: 'Группа уже открыта' };
+    }
+
+    await this.prisma.group.update({
+      where: { id: groupId },
+      data: { closedAt: null, lastActivityAt: new Date() },
+    });
+
+    return { success: true };
+  }
 }
 
 
