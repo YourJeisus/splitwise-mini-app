@@ -2545,6 +2545,17 @@ input::placeholder {
   text-align: center;
 }
 
+.scan-currency-label {
+  min-width: 60px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: var(--accent-purple);
+  color: white;
+  text-align: center;
+}
+
 /* Items Section */
 .scan-items-edit {
   margin-bottom: 16px;
@@ -3061,6 +3072,72 @@ input::placeholder {
   background: var(--bg-card);
   font-size: 15px;
   color: var(--text-primary);
+}
+
+/* Payer custom dropdown */
+.payer-select {
+  position: relative;
+}
+
+.payer-input {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  transition: all 0.2s;
+}
+
+.payer-input:hover {
+  border-color: var(--accent-purple);
+}
+
+.payer-input .arrow {
+  font-size: 12px;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.payer-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  margin-top: 4px;
+  z-index: 100;
+  box-shadow: var(--shadow-lg);
+  max-height: 240px;
+  overflow: hidden;
+}
+
+.payer-list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.payer-option {
+  padding: 14px 16px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  transition: background 0.15s;
+}
+
+.payer-option:hover {
+  background: var(--bg-primary);
+}
+
+.payer-option.selected {
+  background: var(--accent-purple);
+  color: white;
 }
 
 .confirm-breakdown label {

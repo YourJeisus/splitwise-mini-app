@@ -511,6 +511,7 @@ function MainApp() {
   } | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanPaidBy, setScanPaidBy] = useState<string | null>(null); // userId who paid
+  const [showScanPaidByDropdown, setShowScanPaidByDropdown] = useState(false);
   const [scanSplitParticipants, setScanSplitParticipants] = useState<string[]>([]); // для деления поровну
   const [scanPrevDistribution, setScanPrevDistribution] = useState<Record<string, number>[] | null>(null); // для toggle "взять всё"
   const [scanProcessingMsgIndex, setScanProcessingMsgIndex] = useState(0);
@@ -3271,23 +3272,9 @@ function MainApp() {
                       }
                       placeholder="0"
                     />
-                    <select
-                      value={
-                        scanResult.currency ??
-                        groupBalance.group.settlementCurrency
-                      }
-                      onChange={(e) =>
-                        setScanResult((prev) =>
-                          prev ? { ...prev, currency: e.target.value } : prev
-                        )
-                      }
-                    >
-                      {CURRENCIES.map((c) => (
-                        <option key={c.code} value={c.code}>
-                          {c.code}
-                        </option>
-                      ))}
-                    </select>
+                    <span className="scan-currency-label">
+                      {scanResult.currency ?? groupBalance.group.settlementCurrency}
+                    </span>
                   </div>
                   <div className="scan-row">
                     <label>Дата</label>
@@ -3783,16 +3770,33 @@ function MainApp() {
 
                   <div className="confirm-payer">
                     <label>Кто заплатил:</label>
-                    <select
-                      value={scanPaidBy ?? ""}
-                      onChange={(e) => setScanPaidBy(e.target.value)}
-                    >
-                      {Object.keys(groupBalance.balances).map((uid) => (
-                        <option key={uid} value={uid}>
-                          {groupBalance.userNames[uid] || "?"}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="payer-select">
+                      <div
+                        className="payer-input"
+                        onClick={() => setShowScanPaidByDropdown(!showScanPaidByDropdown)}
+                      >
+                        <span>{scanPaidBy ? (groupBalance.userNames[scanPaidBy] || "?") : "Выберите"}</span>
+                        <span className="arrow">▼</span>
+                      </div>
+                      {showScanPaidByDropdown && (
+                        <div className="payer-dropdown">
+                          <div className="payer-list">
+                            {Object.keys(groupBalance.balances).map((uid) => (
+                              <div
+                                key={uid}
+                                className={`payer-option ${scanPaidBy === uid ? "selected" : ""}`}
+                                onClick={() => {
+                                  setScanPaidBy(uid);
+                                  setShowScanPaidByDropdown(false);
+                                }}
+                              >
+                                {groupBalance.userNames[uid] || "?"}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Режим с позициями */}
