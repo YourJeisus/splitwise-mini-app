@@ -1,5 +1,10 @@
 import { PrismaClient } from "@prisma/client";
-import { seedAdmin, seedDemoUsers, seedProducts, seedGroup345 } from "./seeders";
+import {
+  seedAdmin,
+  seedDemoUsers,
+  seedProducts,
+  seedGroup345,
+} from "./seeders";
 
 const prisma = new PrismaClient();
 
