@@ -67,8 +67,8 @@ export class AdminTrackingController {
     try {
       const link = await this.trackingService.create(dto);
       await this.auditService.log({
-        adminId: req.user.id,
-        adminRole: req.user.role,
+        adminId: req.admin.id,
+        adminRole: req.admin.role,
         action: "CREATE_TRACKING_LINK",
         targetType: "TrackingLink",
         targetId: link.id,
@@ -94,8 +94,8 @@ export class AdminTrackingController {
     const before = await this.trackingService.getById(id);
     const link = await this.trackingService.update(id, dto);
     await this.auditService.log({
-      adminId: req.user.id,
-      adminRole: req.user.role,
+      adminId: req.admin.id,
+      adminRole: req.admin.role,
       action: "UPDATE_TRACKING_LINK",
       targetType: "TrackingLink",
       targetId: id,
@@ -118,8 +118,8 @@ export class AdminTrackingController {
     const before = await this.trackingService.getById(id);
     const result = await this.trackingService.delete(id);
     await this.auditService.log({
-      adminId: req.user.id,
-      adminRole: req.user.role,
+      adminId: req.admin.id,
+      adminRole: req.admin.role,
       action: "DELETE_TRACKING_LINK",
       targetType: "TrackingLink",
       targetId: id,
