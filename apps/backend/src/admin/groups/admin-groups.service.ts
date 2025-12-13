@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
 export class AdminGroupsService {
@@ -19,8 +19,8 @@ export class AdminGroupsService {
     const where: any = {};
     if (params.search) {
       where.OR = [
-        { id: { contains: params.search, mode: 'insensitive' } },
-        { name: { contains: params.search, mode: 'insensitive' } },
+        { id: { contains: params.search, mode: "insensitive" } },
+        { name: { contains: params.search, mode: "insensitive" } },
       ];
     }
     if (params.closed === true) {
@@ -34,7 +34,7 @@ export class AdminGroupsService {
     const [items, total] = await Promise.all([
       this.prisma.group.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip,
         take: limit,
         select: {
@@ -59,13 +59,13 @@ export class AdminGroupsService {
     // Post-filter by hasTripPass if needed
     let filteredItems = items;
     if (params.hasTripPass === true) {
-      filteredItems = items.filter(g => g.entitlements.length > 0);
+      filteredItems = items.filter((g) => g.entitlements.length > 0);
     } else if (params.hasTripPass === false) {
-      filteredItems = items.filter(g => g.entitlements.length === 0);
+      filteredItems = items.filter((g) => g.entitlements.length === 0);
     }
 
     return {
-      items: filteredItems.map(g => ({
+      items: filteredItems.map((g) => ({
         id: g.id,
         name: g.name,
         imageUrl: g.imageUrl,
@@ -88,19 +88,37 @@ export class AdminGroupsService {
     const group = await this.prisma.group.findUnique({
       where: { id },
       include: {
-        createdBy: { select: { id: true, telegramId: true, firstName: true, lastName: true } },
+        createdBy: {
+          select: {
+            id: true,
+            telegramId: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
         members: {
           include: {
-            user: { select: { id: true, telegramId: true, firstName: true, lastName: true, avatarUrl: true } },
+            user: {
+              select: {
+                id: true,
+                telegramId: true,
+                firstName: true,
+                lastName: true,
+                avatarUrl: true,
+              },
+            },
           },
         },
         entitlements: {
-          include: { product: true, purchase: { select: { id: true, buyerUserId: true } } },
+          include: {
+            product: true,
+            purchase: { select: { id: true, buyerUserId: true } },
+          },
         },
         _count: { select: { expenses: true, settlements: true } },
       },
     });
-    if (!group) throw new NotFoundException('Группа не найдена');
+    if (!group) throw new NotFoundException("Группа не найдена");
 
     return {
       ...group,
@@ -114,12 +132,12 @@ export class AdminGroupsService {
       where: { id: groupId },
       select: { id: true },
     });
-    if (!group) throw new NotFoundException('Группа не найдена');
+    if (!group) throw new NotFoundException("Группа не найдена");
 
     const product = await this.prisma.product.findFirst({
-      where: { code: 'TRIP_PASS_30D' },
+      where: { code: "TRIP_PASS_30D" },
     });
-    if (!product) throw new NotFoundException('Продукт Trip Pass не найден');
+    if (!product) throw new NotFoundException("Продукт Trip Pass не найден");
 
     const now = new Date();
     const endsAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
@@ -128,14 +146,16 @@ export class AdminGroupsService {
     const existing = await this.prisma.entitlement.findFirst({
       where: {
         groupId,
-        productCode: 'TRIP_PASS_30D',
+        productCode: "TRIP_PASS_30D",
         endsAt: { gt: now },
       },
     });
 
     if (existing) {
       // Продлеваем существующий
-      const newEndsAt = new Date(existing.endsAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
+      const newEndsAt = new Date(
+        existing.endsAt.getTime() + durationDays * 24 * 60 * 60 * 1000
+      );
       await this.prisma.entitlement.update({
         where: { id: existing.id },
         data: { endsAt: newEndsAt },
@@ -146,9 +166,9 @@ export class AdminGroupsService {
     // Создаём новый entitlement без покупки (административный грант)
     await this.prisma.entitlement.create({
       data: {
-        groupId,
-        productId: product.id,
-        productCode: 'TRIP_PASS_30D',
+        group: { connect: { id: groupId } },
+        product: { connect: { code: "TRIP_PASS_30D" } },
+        productCode: "TRIP_PASS_30D",
         startsAt: now,
         endsAt,
       },
@@ -162,9 +182,9 @@ export class AdminGroupsService {
       where: { id: groupId },
       select: { id: true, closedAt: true },
     });
-    if (!group) throw new NotFoundException('Группа не найдена');
+    if (!group) throw new NotFoundException("Группа не найдена");
     if (!group.closedAt) {
-      return { success: true, message: 'Группа уже открыта' };
+      return { success: true, message: "Группа уже открыта" };
     }
 
     await this.prisma.group.update({
@@ -175,5 +195,3 @@ export class AdminGroupsService {
     return { success: true };
   }
 }
-
-

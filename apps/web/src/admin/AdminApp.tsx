@@ -229,7 +229,11 @@ function GroupsTab() {
                   <td>{g.expensesCount}</td>
                   <td>
                     {g.tripPassActive ? (
-                      <span title={`До ${new Date(g.tripPassEndsAt).toLocaleString()}`}>✅</span>
+                      <span
+                        title={`До ${new Date(g.tripPassEndsAt).toLocaleString()}`}
+                      >
+                        ✅
+                      </span>
                     ) : (
                       ""
                     )}

@@ -124,7 +124,11 @@ export type TripSummary = {
   };
   roles: {
     topPayer: { userId: string; name: string; amount: number } | null;
-    mostFrequentParticipant: { userId: string; name: string; count: number } | null;
+    mostFrequentParticipant: {
+      userId: string;
+      name: string;
+      count: number;
+    } | null;
     topDebtor: { userId: string; name: string; amount: number } | null;
     topCreditor: { userId: string; name: string; amount: number } | null;
   };
@@ -248,10 +252,10 @@ export type ClaimReceiptItemsPayload = {
 export const createApiClient = (initData: string) => {
   const envUrl = import.meta.env.VITE_API_URL as string | undefined;
   const isDev = import.meta.env.DEV;
-  
+
   // В dev всегда используем VITE_API_URL если задан
   // В prod (Telegram WebApp) используем origin
-  const rawUrl = isDev && envUrl ? envUrl : (envUrl || window.location.origin);
+  const rawUrl = isDev && envUrl ? envUrl : envUrl || window.location.origin;
   const baseUrl = rawUrl.endsWith("/") ? rawUrl.slice(0, -1) : rawUrl;
 
   const request = async <T>(
@@ -308,7 +312,8 @@ export const createApiClient = (initData: string) => {
         formData.append("name", payload.name);
         if (payload.settlementCurrency)
           formData.append("settlementCurrency", payload.settlementCurrency);
-        if (payload.homeCurrency) formData.append("homeCurrency", payload.homeCurrency);
+        if (payload.homeCurrency)
+          formData.append("homeCurrency", payload.homeCurrency);
         formData.append("image", payload.image);
         const res = await fetch(`${baseUrl}/groups`, {
           method: "POST",
@@ -351,7 +356,8 @@ export const createApiClient = (initData: string) => {
         if (payload.name) formData.append("name", payload.name);
         if (payload.settlementCurrency)
           formData.append("settlementCurrency", payload.settlementCurrency);
-        if (payload.homeCurrency) formData.append("homeCurrency", payload.homeCurrency);
+        if (payload.homeCurrency)
+          formData.append("homeCurrency", payload.homeCurrency);
         formData.append("image", payload.image);
         const res = await fetch(`${baseUrl}/groups/${groupId}`, {
           method: "PATCH",
@@ -426,10 +432,10 @@ export const createApiClient = (initData: string) => {
         { method: "POST", body: payload }
       ),
     enableTripPassSplit: (purchaseId: string) =>
-      request<{ success: boolean }>(
-        "/monetization/trip-pass/enable-split",
-        { method: "POST", body: { purchaseId } }
-      ),
+      request<{ success: boolean }>("/monetization/trip-pass/enable-split", {
+        method: "POST",
+        body: { purchaseId },
+      }),
     getTripPassStatus: (groupId: string) =>
       request<{ active: boolean; endsAt?: string }>(
         `/monetization/trip-pass/status?groupId=${encodeURIComponent(groupId)}`
@@ -485,30 +491,37 @@ export const createApiClient = (initData: string) => {
       request<Receipt | null>(`/expenses/receipt/by-expense/${expenseId}`),
 
     listGroupReceipts: (groupId: string) =>
-      request<Array<{
-        id: string;
-        expenseId: string;
-        totalAmount: number;
-        currency: string;
-        status: "PENDING" | "DISTRIBUTED" | "FINALIZED";
-        createdAt: string;
-        expense: {
+      request<
+        Array<{
           id: string;
-          description: string;
-          createdById: string;
-          createdBy: ReceiptMember;
-        };
-        stats: {
-          totalClaimed: number;
-          totalRemaining: number;
-          itemsCount: number;
-        };
-      }>>(`/expenses/receipts/group/${groupId}`),
+          expenseId: string;
+          totalAmount: number;
+          currency: string;
+          status: "PENDING" | "DISTRIBUTED" | "FINALIZED";
+          createdAt: string;
+          expense: {
+            id: string;
+            description: string;
+            createdById: string;
+            createdBy: ReceiptMember;
+          };
+          stats: {
+            totalClaimed: number;
+            totalRemaining: number;
+            itemsCount: number;
+          };
+        }>
+      >(`/expenses/receipts/group/${groupId}`),
 
     claimReceiptItems: (payload: ClaimReceiptItemsPayload) =>
-      request<Receipt>("/expenses/receipt/claim", { method: "POST", body: payload }),
+      request<Receipt>("/expenses/receipt/claim", {
+        method: "POST",
+        body: payload,
+      }),
 
     finalizeReceipt: (receiptId: string) =>
-      request<Receipt>(`/expenses/receipt/${receiptId}/finalize`, { method: "POST" }),
+      request<Receipt>(`/expenses/receipt/${receiptId}/finalize`, {
+        method: "POST",
+      }),
   };
 };

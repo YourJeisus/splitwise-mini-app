@@ -219,11 +219,11 @@ model Entitlement {
   productCode String
   startsAt    DateTime
   endsAt      DateTime
-  purchaseId  String   @unique
+  purchaseId  String?  @unique
 
   group    Group    @relation(fields: [groupId], references: [id])
   product  Product  @relation(fields: [productCode], references: [code])
-  purchase Purchase @relation(fields: [purchaseId], references: [id])
+  purchase Purchase? @relation(fields: [purchaseId], references: [id])
 
   @@index([groupId, productCode])
   @@index([endsAt])
