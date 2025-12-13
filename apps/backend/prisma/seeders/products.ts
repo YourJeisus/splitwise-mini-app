@@ -47,4 +47,3 @@ export async function seedProducts(prisma: PrismaClient) {
 
   console.log("Products seeded: TRIP_PASS_30D (200⭐ -> 100⭐)");
 }
-

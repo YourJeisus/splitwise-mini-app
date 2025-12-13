@@ -12,7 +12,13 @@ import type {
 } from "./api";
 import { AdminApp } from "./admin/AdminApp";
 import { Icons, SwipeableExpense, SwipeableGroup } from "./components";
-import { CURRENCIES, getCurrencySymbol, DEV_USERS, getGroupColor, getGroupIcon } from "./constants";
+import {
+  CURRENCIES,
+  getCurrencySymbol,
+  DEV_USERS,
+  getGroupColor,
+  getGroupIcon,
+} from "./constants";
 import { formatDate } from "./utils";
 import type { Tab, InviteInfo } from "./types";
 
@@ -96,8 +102,12 @@ function MainApp() {
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanPaidBy, setScanPaidBy] = useState<string | null>(null); // userId who paid
   const [showScanPaidByDropdown, setShowScanPaidByDropdown] = useState(false);
-  const [scanSplitParticipants, setScanSplitParticipants] = useState<string[]>([]); // для деления поровну
-  const [scanPrevDistribution, setScanPrevDistribution] = useState<Record<string, number>[] | null>(null); // для toggle "взять всё"
+  const [scanSplitParticipants, setScanSplitParticipants] = useState<string[]>(
+    []
+  ); // для деления поровну
+  const [scanPrevDistribution, setScanPrevDistribution] = useState<
+    Record<string, number>[] | null
+  >(null); // для toggle "взять всё"
   const [scanProcessingMsgIndex, setScanProcessingMsgIndex] = useState(0);
   const scanProcessingMessages = [
     "Смотрим, что тут вкусного и за сколько",
@@ -121,7 +131,9 @@ function MainApp() {
   // Шаг проверки перед финализацией
   const [showFinalizeReview, setShowFinalizeReview] = useState(false);
   // Ручное распределение: { itemId: { userId: quantity } }
-  const [manualDistribution, setManualDistribution] = useState<Record<string, Record<string, number>>>({});
+  const [manualDistribution, setManualDistribution] = useState<
+    Record<string, Record<string, number>>
+  >({});
 
   // Trip Summary (Итоги поездки)
   const [showTripSummary, setShowTripSummary] = useState(false);
@@ -179,6 +191,7 @@ function MainApp() {
   // Тост подсказка для добавления на главный экран
   const [showHomeScreenTip, setShowHomeScreenTip] = useState(false);
   const [showActiveGroupsLimit, setShowActiveGroupsLimit] = useState(false);
+  const [showAboutProduct, setShowAboutProduct] = useState(false);
 
   const api = useMemo(
     () => createApiClient(initData || import.meta.env.VITE_TG_INIT_DATA || ""),
@@ -253,7 +266,6 @@ function MainApp() {
     },
     [showHomeAmount, groupBalance]
   );
-
 
   const checkInviteCode = useCallback(
     async (code: string) => {
@@ -368,7 +380,9 @@ function MainApp() {
       return;
     }
     const interval = setInterval(() => {
-      setScanProcessingMsgIndex((prev) => (prev + 1) % scanProcessingMessages.length);
+      setScanProcessingMsgIndex(
+        (prev) => (prev + 1) % scanProcessingMessages.length
+      );
     }, 3000);
     return () => clearInterval(interval);
   }, [scanStep]);
@@ -1041,9 +1055,12 @@ function MainApp() {
             <span className="date-text">Сегодня {formatDate()}</span>
           </div>
         </div>
-        {groups.some((g) => g.hasTripPass && !g.closedAt) && (
-          <span className="header-trip-pass-badge">Trip Pass</span>
-        )}
+        <button
+          className="header-about-btn"
+          onClick={() => setShowAboutProduct(true)}
+        >
+          О продукте
+        </button>
       </header>
 
       {inviteError && (
@@ -1192,7 +1209,12 @@ function MainApp() {
                 </div>
               )}
               <div className="group-item-content">
-                <div className="group-item-name">{currentGroup.name}</div>
+                <div className="group-item-name">
+                  {currentGroup.name}
+                  {currentGroup.hasTripPass && !currentGroup.closedAt && (
+                    <span className="group-trip-pass-badge">✨</span>
+                  )}
+                </div>
                 <div className="group-item-meta">
                   {getCurrencySymbol(currentGroup.currency)}
                 </div>
@@ -1235,7 +1257,12 @@ function MainApp() {
                       </div>
                     )}
                     <div className="group-item-content">
-                      <div className="group-item-name">{g.name}</div>
+                      <div className="group-item-name">
+                        {g.name}
+                        {g.hasTripPass && !g.closedAt && (
+                          <span className="group-trip-pass-badge">✨</span>
+                        )}
+                      </div>
                       <div className="group-item-meta">
                         {getCurrencySymbol(g.currency)}
                       </div>
@@ -1633,8 +1660,9 @@ function MainApp() {
                       <SwipeableExpense
                         key={item.id}
                         isOwner={
-                          item.createdBy.id === user?.id && 
-                          (!item.isSystem || item.systemType === "TRIP_PASS_FEE")
+                          item.createdBy.id === user?.id &&
+                          (!item.isSystem ||
+                            item.systemType === "TRIP_PASS_FEE")
                         }
                         onEdit={() => handleEditExpense(item)}
                         onDelete={() => handleDeleteExpense(item.id)}
@@ -1646,7 +1674,9 @@ function MainApp() {
                               item.id
                             );
                             if (receipt) {
-                              window.Telegram?.WebApp?.HapticFeedback?.impactOccurred("medium");
+                              window.Telegram?.WebApp?.HapticFeedback?.impactOccurred(
+                                "medium"
+                              );
                               setViewingReceipt(receipt);
                             }
                           } catch (err) {
@@ -2020,36 +2050,37 @@ function MainApp() {
             )}
 
             {/* Для чеков и Trip Pass Fee скрываем редактирование суммы */}
-            {editingExpense?.category !== "receipt" && editingExpense?.systemType !== "TRIP_PASS_FEE" && (
-              <>
-                <input
-                  type="number"
-                  value={expenseAmount || ""}
-                  onChange={(e) => setExpenseAmount(Number(e.target.value))}
-                  placeholder={`Сумма в ${getCurrencySymbol(groupBalance.group.currency)}`}
-                />
+            {editingExpense?.category !== "receipt" &&
+              editingExpense?.systemType !== "TRIP_PASS_FEE" && (
+                <>
+                  <input
+                    type="number"
+                    value={expenseAmount || ""}
+                    onChange={(e) => setExpenseAmount(Number(e.target.value))}
+                    placeholder={`Сумма в ${getCurrencySymbol(groupBalance.group.currency)}`}
+                  />
 
-                <button
-                  type="button"
-                  className="secondary-btn scan-receipt-btn"
-                  onClick={() => {
-                    if (tripPassStatus?.active) {
-                      setScanStep("select");
-                      setScanImage(null);
-                      setScanResult(null);
-                      setScanError(null);
-                    } else {
-                      openTripPassUpsellModal("scan");
-                    }
-                  }}
-                >
-                  📷 Сканировать чек{" "}
-                  {!tripPassStatus?.active && (
-                    <span className="trip-pass-badge">Trip Pass</span>
-                  )}
-                </button>
-              </>
-            )}
+                  <button
+                    type="button"
+                    className="secondary-btn scan-receipt-btn"
+                    onClick={() => {
+                      if (tripPassStatus?.active) {
+                        setScanStep("select");
+                        setScanImage(null);
+                        setScanResult(null);
+                        setScanError(null);
+                      } else {
+                        openTripPassUpsellModal("scan");
+                      }
+                    }}
+                  >
+                    📷 Сканировать чек{" "}
+                    {!tripPassStatus?.active && (
+                      <span className="trip-pass-badge">Trip Pass</span>
+                    )}
+                  </button>
+                </>
+              )}
 
             {/* Выбор участников - показываем для обычных расходов и Trip Pass Fee */}
             {editingExpense?.category !== "receipt" && (
@@ -2072,7 +2103,8 @@ function MainApp() {
 
                 {selectedParticipants.length > 0 && expenseAmount > 0 && (
                   <p className="split-info">
-                    По {(expenseAmount / selectedParticipants.length).toFixed(0)}{" "}
+                    По{" "}
+                    {(expenseAmount / selectedParticipants.length).toFixed(0)}{" "}
                     {getCurrencySymbol(groupBalance.group.currency)} на человека
                   </p>
                 )}
@@ -2088,7 +2120,8 @@ function MainApp() {
 
             {editingExpense?.systemType === "TRIP_PASS_FEE" && (
               <p className="receipt-edit-hint">
-                Выберите участников, между которыми разделить стоимость Trip Pass
+                Выберите участников, между которыми разделить стоимость Trip
+                Pass
               </p>
             )}
 
@@ -2485,6 +2518,52 @@ function MainApp() {
         </div>
       )}
 
+      {/* About Product Modal */}
+      {showAboutProduct && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowAboutProduct(false)}
+        >
+          <div
+            className="modal about-product-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3>О продукте</h3>
+              <button
+                className="close-btn"
+                onClick={() => setShowAboutProduct(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="about-product-content">
+              <div className="about-section">
+                <h4>🆓 Бесплатная версия</h4>
+                <p>
+                  Можно создавать и вести группы, добавлять траты вручную,
+                  видеть текущий баланс и список всех расходов. Доступно участие
+                  в распределении чеков и базовый учёт расходов в валюте поездки
+                  — без итогов, отчётов и конвертации.
+                </p>
+              </div>
+              <div className="about-section">
+                <h4>✨ Trip Pass</h4>
+                <p>
+                  Даёт быстрый и аккуратный финал поездки: сканирование чеков,
+                  распределение трат по позициям, предварительные и финальные
+                  итоги, закрытие поездки с фиксацией долгов. Появляется
+                  отображение сумм в домашней валюте, подробный отчёт по поездке
+                  и системная трата SplitCost, которая справедливо распределяет
+                  стоимость Trip Pass между участниками. Всё — без ручной рутины
+                  и лишних разговоров.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Trip Pass Upsell Modal */}
       {tripPassUpsell && (
         <div className="modal-overlay" onClick={() => setTripPassUpsell(null)}>
@@ -2521,7 +2600,9 @@ function MainApp() {
               }
               disabled={tripPassBuying}
             >
-              {tripPassBuying ? "..." : (
+              {tripPassBuying ? (
+                "..."
+              ) : (
                 <>
                   Купить Trip Pass (21 день)
                   <span className="trip-pass-price">
@@ -2537,11 +2618,23 @@ function MainApp() {
 
       {/* Trip Pass Split Cost Modal */}
       {showTripPassSplitModal && lastPurchaseId && (
-        <div className="modal-overlay" onClick={() => setShowTripPassSplitModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 340 }}>
+        <div
+          className="modal-overlay"
+          onClick={() => setShowTripPassSplitModal(false)}
+        >
+          <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 340 }}
+          >
             <div className="modal-header">
               <h3>🎉 Trip Pass активирован!</h3>
-              <button className="close-btn" onClick={() => setShowTripPassSplitModal(false)}>✕</button>
+              <button
+                className="close-btn"
+                onClick={() => setShowTripPassSplitModal(false)}
+              >
+                ✕
+              </button>
             </div>
             <p style={{ marginTop: 0, opacity: 0.9, fontSize: 14 }}>
               Хотите разделить стоимость Trip Pass между участниками группы?
@@ -2574,7 +2667,8 @@ function MainApp() {
               Нет, оплачу сам
             </button>
             <p style={{ marginTop: 12, fontSize: 12, opacity: 0.7 }}>
-              Вы сможете изменить распределение позже, отредактировав трату в истории
+              Вы сможете изменить распределение позже, отредактировав трату в
+              истории
             </p>
           </div>
         </div>
@@ -2845,7 +2939,8 @@ function MainApp() {
                       placeholder="0"
                     />
                     <span className="scan-currency-label">
-                      {scanResult.currency ?? groupBalance.group.settlementCurrency}
+                      {scanResult.currency ??
+                        groupBalance.group.settlementCurrency}
                     </span>
                   </div>
                   <div className="scan-row">
@@ -3130,7 +3225,9 @@ function MainApp() {
                       setScanResult((prev) =>
                         prev ? { ...prev, items: [] } : prev
                       );
-                      setScanSplitParticipants(Object.keys(groupBalance.balances));
+                      setScanSplitParticipants(
+                        Object.keys(groupBalance.balances)
+                      );
                       setScanStep("confirm");
                     }}
                   >
@@ -3279,10 +3376,12 @@ function MainApp() {
                       onClick={() => {
                         if (allMine && scanPrevDistribution) {
                           // Восстанавливаем предыдущее состояние
-                          const newItems = scanResult.items.map((item, idx) => ({
-                            ...item,
-                            distribution: scanPrevDistribution[idx] || {},
-                          }));
+                          const newItems = scanResult.items.map(
+                            (item, idx) => ({
+                              ...item,
+                              distribution: scanPrevDistribution[idx] || {},
+                            })
+                          );
                           setScanResult((prev) =>
                             prev ? { ...prev, items: newItems } : prev
                           );
@@ -3290,7 +3389,9 @@ function MainApp() {
                         } else {
                           // Сохраняем текущее и берём всё себе
                           setScanPrevDistribution(
-                            scanResult.items.map((item) => ({ ...item.distribution }))
+                            scanResult.items.map((item) => ({
+                              ...item.distribution,
+                            }))
                           );
                           const newItems = scanResult.items.map((item) => ({
                             ...item,
@@ -3320,7 +3421,11 @@ function MainApp() {
             {scanStep === "confirm" && scanResult && (
               <>
                 <div className="modal-header">
-                  <h3>{scanResult.items.length > 0 ? "Подтверждение" : "Разделить поровну"}</h3>
+                  <h3>
+                    {scanResult.items.length > 0
+                      ? "Подтверждение"
+                      : "Разделить поровну"}
+                  </h3>
                   <button
                     className="close-btn"
                     onClick={() =>
@@ -3345,9 +3450,15 @@ function MainApp() {
                     <div className="payer-select">
                       <div
                         className="payer-input"
-                        onClick={() => setShowScanPaidByDropdown(!showScanPaidByDropdown)}
+                        onClick={() =>
+                          setShowScanPaidByDropdown(!showScanPaidByDropdown)
+                        }
                       >
-                        <span>{scanPaidBy ? (groupBalance.userNames[scanPaidBy] || "?") : "Выберите"}</span>
+                        <span>
+                          {scanPaidBy
+                            ? groupBalance.userNames[scanPaidBy] || "?"
+                            : "Выберите"}
+                        </span>
                         <span className="arrow">▼</span>
                       </div>
                       {showScanPaidByDropdown && (
@@ -3434,8 +3545,8 @@ function MainApp() {
 
                       <div className="confirm-note">
                         <p>
-                          💡 После сохранения другие участники смогут открыть этот
-                          чек и выбрать свои позиции
+                          💡 После сохранения другие участники смогут открыть
+                          этот чек и выбрать свои позиции
                         </p>
                       </div>
                     </>
@@ -3448,7 +3559,9 @@ function MainApp() {
                         <label>Разделить между:</label>
                         <div className="participants-list">
                           {Object.entries(groupBalance.balances)
-                            .filter(([uid]) => !groupBalance.inactiveMembers?.[uid])
+                            .filter(
+                              ([uid]) => !groupBalance.inactiveMembers?.[uid]
+                            )
                             .map(([uid]) => (
                               <button
                                 key={uid}
@@ -3468,24 +3581,38 @@ function MainApp() {
                         </div>
                       </div>
 
-                      {scanSplitParticipants.length > 0 && scanResult.amount && (
-                        <div className="split-breakdown">
-                          <div className="split-per-person">
-                            <span>На каждого:</span>
-                            <strong>
-                              {(scanResult.amount / scanSplitParticipants.length).toFixed(0)} {scanResult.currency}
-                            </strong>
+                      {scanSplitParticipants.length > 0 &&
+                        scanResult.amount && (
+                          <div className="split-breakdown">
+                            <div className="split-per-person">
+                              <span>На каждого:</span>
+                              <strong>
+                                {(
+                                  scanResult.amount /
+                                  scanSplitParticipants.length
+                                ).toFixed(0)}{" "}
+                                {scanResult.currency}
+                              </strong>
+                            </div>
+                            <div className="split-list">
+                              {scanSplitParticipants.map((uid) => (
+                                <div key={uid} className="split-row">
+                                  <span>
+                                    {groupBalance.userNames?.[uid] ||
+                                      "Участник"}
+                                  </span>
+                                  <span>
+                                    {(
+                                      scanResult.amount! /
+                                      scanSplitParticipants.length
+                                    ).toFixed(0)}{" "}
+                                    {scanResult.currency}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                          <div className="split-list">
-                            {scanSplitParticipants.map((uid) => (
-                              <div key={uid} className="split-row">
-                                <span>{groupBalance.userNames?.[uid] || "Участник"}</span>
-                                <span>{(scanResult.amount! / scanSplitParticipants.length).toFixed(0)} {scanResult.currency}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                        )}
                     </>
                   )}
                 </div>
@@ -3495,7 +3622,8 @@ function MainApp() {
                   disabled={
                     !scanResult.amount ||
                     !scanPaidBy ||
-                    (scanResult.items.length === 0 && scanSplitParticipants.length === 0)
+                    (scanResult.items.length === 0 &&
+                      scanSplitParticipants.length === 0)
                   }
                   onClick={async () => {
                     try {
@@ -3515,7 +3643,9 @@ function MainApp() {
 
                         // Проверяем, взял ли пользователь все на себя
                         const allMine = scanResult.items.every(
-                          (item) => (item.distribution?.[myId || ""] || 0) === item.quantity
+                          (item) =>
+                            (item.distribution?.[myId || ""] || 0) ===
+                            item.quantity
                         );
 
                         const receipt = await api.createReceipt({
@@ -3543,7 +3673,8 @@ function MainApp() {
                         }
                       } else {
                         // Режим поровну - создаём обычный расход
-                        const owed = scanResult.amount! / scanSplitParticipants.length;
+                        const owed =
+                          scanResult.amount! / scanSplitParticipants.length;
                         const shares = scanSplitParticipants.map((uid) => ({
                           userId: uid,
                           paid: uid === scanPaidBy ? scanResult.amount! : 0,
@@ -3822,28 +3953,43 @@ function MainApp() {
 
             {/* Распределение по всем участникам */}
             <div className="receipt-all-shares">
-              <h4>Распределение{viewingReceipt.stats.isPreliminary ? " (предв.)" : ""}:</h4>
+              <h4>
+                Распределение
+                {viewingReceipt.stats.isPreliminary ? " (предв.)" : ""}:
+              </h4>
               <div className="shares-list">
                 {viewingReceipt.members.map((member) => {
                   const owed = viewingReceipt.stats.owedByUser[member.id] || 0;
-                  const hasClaimed = viewingReceipt.stats.claimedUserIds?.includes(member.id);
+                  const hasClaimed =
+                    viewingReceipt.stats.claimedUserIds?.includes(member.id);
                   const isMe = member.id === user?.id;
                   return (
-                    <div key={member.id} className={`share-row ${isMe ? "me" : ""} ${!hasClaimed ? "not-claimed" : ""}`}>
+                    <div
+                      key={member.id}
+                      className={`share-row ${isMe ? "me" : ""} ${!hasClaimed ? "not-claimed" : ""}`}
+                    >
                       <div className="share-user">
                         <div className="share-avatar">
                           {member.avatarUrl ? (
                             <img src={member.avatarUrl} alt="" />
                           ) : (
-                            <span>{(member.firstName || member.username || "?")[0]}</span>
+                            <span>
+                              {(member.firstName || member.username || "?")[0]}
+                            </span>
                           )}
                         </div>
                         <span className="share-name">
-                          {isMe ? "Вы" : (member.firstName || member.username || "?")}
-                          {!hasClaimed && <span className="not-marked"> (не отметился)</span>}
+                          {isMe
+                            ? "Вы"
+                            : member.firstName || member.username || "?"}
+                          {!hasClaimed && (
+                            <span className="not-marked"> (не отметился)</span>
+                          )}
                         </span>
                       </div>
-                      <span className="share-amount">{owed.toFixed(0)} {viewingReceipt.currency}</span>
+                      <span className="share-amount">
+                        {owed.toFixed(0)} {viewingReceipt.currency}
+                      </span>
                     </div>
                   );
                 })}
@@ -3859,207 +4005,298 @@ function MainApp() {
       )}
 
       {/* Finalize Review Modal - шаг проверки перед закрытием чека */}
-      {showFinalizeReview && viewingReceipt && (() => {
-        // Нераспределённые позиции
-        const unclaimedItems = viewingReceipt.items.filter(item => item.remainingQuantity > 0);
-        const hasUnclaimed = unclaimedItems.length > 0;
+      {showFinalizeReview &&
+        viewingReceipt &&
+        (() => {
+          // Нераспределённые позиции
+          const unclaimedItems = viewingReceipt.items.filter(
+            (item) => item.remainingQuantity > 0
+          );
+          const hasUnclaimed = unclaimedItems.length > 0;
 
-        // Рассчитываем итоговое распределение с учётом ручных правок
-        const calculateFinalOwed = () => {
-          const owedByUser: Record<string, number> = {};
-          viewingReceipt.members.forEach(m => owedByUser[m.id] = 0);
+          // Рассчитываем итоговое распределение с учётом ручных правок
+          const calculateFinalOwed = () => {
+            const owedByUser: Record<string, number> = {};
+            viewingReceipt.members.forEach((m) => (owedByUser[m.id] = 0));
 
-          for (const item of viewingReceipt.items) {
-            const unitCost = item.totalPrice / item.quantity;
-            
-            // Учитываем существующие claims
-            for (const claim of item.claims) {
-              owedByUser[claim.userId] = (owedByUser[claim.userId] || 0) + unitCost * claim.quantity;
-            }
+            for (const item of viewingReceipt.items) {
+              const unitCost = item.totalPrice / item.quantity;
 
-            // Учитываем ручное распределение
-            const manualForItem = manualDistribution[item.id] || {};
-            let manuallyDistributed = 0;
-            for (const [uid, qty] of Object.entries(manualForItem)) {
-              owedByUser[uid] = (owedByUser[uid] || 0) + unitCost * qty;
-              manuallyDistributed += qty;
-            }
+              // Учитываем существующие claims
+              for (const claim of item.claims) {
+                owedByUser[claim.userId] =
+                  (owedByUser[claim.userId] || 0) + unitCost * claim.quantity;
+              }
 
-            // Оставшееся после claims и ручного распределения — поровну
-            const claimedQty = item.claims.reduce((sum, c) => sum + c.quantity, 0);
-            const stillUnclaimed = item.quantity - claimedQty - manuallyDistributed;
-            if (stillUnclaimed > 0) {
-              const perPerson = (unitCost * stillUnclaimed) / viewingReceipt.members.length;
-              viewingReceipt.members.forEach(m => {
-                owedByUser[m.id] = (owedByUser[m.id] || 0) + perPerson;
-              });
-            }
-          }
+              // Учитываем ручное распределение
+              const manualForItem = manualDistribution[item.id] || {};
+              let manuallyDistributed = 0;
+              for (const [uid, qty] of Object.entries(manualForItem)) {
+                owedByUser[uid] = (owedByUser[uid] || 0) + unitCost * qty;
+                manuallyDistributed += qty;
+              }
 
-          return owedByUser;
-        };
-
-        const finalOwed = calculateFinalOwed();
-
-        // Обработчик изменения ручного распределения
-        const handleManualChange = (itemId: string, userId: string, delta: number) => {
-          setManualDistribution(prev => {
-            const newDist = { ...prev };
-            if (!newDist[itemId]) newDist[itemId] = {};
-            const current = newDist[itemId][userId] || 0;
-            const item = viewingReceipt.items.find(it => it.id === itemId);
-            if (!item) return prev;
-            
-            // Сколько уже распределено (claims + manual)
-            const claimedQty = item.claims.reduce((sum, c) => sum + c.quantity, 0);
-            const manualTotal = Object.values(newDist[itemId]).reduce((sum, q) => sum + q, 0);
-            const available = item.quantity - claimedQty - manualTotal + current;
-            
-            const newQty = Math.max(0, Math.min(current + delta, available));
-            newDist[itemId][userId] = newQty;
-            
-            return newDist;
-          });
-        };
-
-        // Финализация с ручными правками
-        const handleFinalize = async () => {
-          setReceiptClaimLoading(true);
-          try {
-            // Сначала применяем все ручные распределения как claims от создателя
-            for (const [itemId, userDist] of Object.entries(manualDistribution)) {
-              for (const [userId, quantity] of Object.entries(userDist)) {
-                if (quantity > 0) {
-                  await api.claimReceiptItems({
-                    receiptId: viewingReceipt.id,
-                    claims: [{ itemId, quantity }],
-                    forUserId: userId, // распределяем для другого пользователя
-                  });
-                }
+              // Оставшееся после claims и ручного распределения — поровну
+              const claimedQty = item.claims.reduce(
+                (sum, c) => sum + c.quantity,
+                0
+              );
+              const stillUnclaimed =
+                item.quantity - claimedQty - manuallyDistributed;
+              if (stillUnclaimed > 0) {
+                const perPerson =
+                  (unitCost * stillUnclaimed) / viewingReceipt.members.length;
+                viewingReceipt.members.forEach((m) => {
+                  owedByUser[m.id] = (owedByUser[m.id] || 0) + perPerson;
+                });
               }
             }
-            // Затем финализируем
-            const updated = await api.finalizeReceipt(viewingReceipt.id);
-            setViewingReceipt(updated);
-            setShowFinalizeReview(false);
-            if (selectedGroup) {
-              handleSelectGroup(selectedGroup);
+
+            return owedByUser;
+          };
+
+          const finalOwed = calculateFinalOwed();
+
+          // Обработчик изменения ручного распределения
+          const handleManualChange = (
+            itemId: string,
+            userId: string,
+            delta: number
+          ) => {
+            setManualDistribution((prev) => {
+              const newDist = { ...prev };
+              if (!newDist[itemId]) newDist[itemId] = {};
+              const current = newDist[itemId][userId] || 0;
+              const item = viewingReceipt.items.find((it) => it.id === itemId);
+              if (!item) return prev;
+
+              // Сколько уже распределено (claims + manual)
+              const claimedQty = item.claims.reduce(
+                (sum, c) => sum + c.quantity,
+                0
+              );
+              const manualTotal = Object.values(newDist[itemId]).reduce(
+                (sum, q) => sum + q,
+                0
+              );
+              const available =
+                item.quantity - claimedQty - manualTotal + current;
+
+              const newQty = Math.max(0, Math.min(current + delta, available));
+              newDist[itemId][userId] = newQty;
+
+              return newDist;
+            });
+          };
+
+          // Финализация с ручными правками
+          const handleFinalize = async () => {
+            setReceiptClaimLoading(true);
+            try {
+              // Сначала применяем все ручные распределения как claims от создателя
+              for (const [itemId, userDist] of Object.entries(
+                manualDistribution
+              )) {
+                for (const [userId, quantity] of Object.entries(userDist)) {
+                  if (quantity > 0) {
+                    await api.claimReceiptItems({
+                      receiptId: viewingReceipt.id,
+                      claims: [{ itemId, quantity }],
+                      forUserId: userId, // распределяем для другого пользователя
+                    });
+                  }
+                }
+              }
+              // Затем финализируем
+              const updated = await api.finalizeReceipt(viewingReceipt.id);
+              setViewingReceipt(updated);
+              setShowFinalizeReview(false);
+              if (selectedGroup) {
+                handleSelectGroup(selectedGroup);
+              }
+            } catch (err) {
+              console.error("Finalize error:", err);
             }
-          } catch (err) {
-            console.error("Finalize error:", err);
-          }
-          setReceiptClaimLoading(false);
-        };
+            setReceiptClaimLoading(false);
+          };
 
-        return (
-          <div className="modal-overlay" onClick={() => setShowFinalizeReview(false)}>
-            <div className="modal finalize-review-modal" onClick={e => e.stopPropagation()}>
-              <div className="modal-header">
-                <h3>Проверка перед закрытием</h3>
-                <button className="close-btn" onClick={() => setShowFinalizeReview(false)}>✕</button>
-              </div>
+          return (
+            <div
+              className="modal-overlay"
+              onClick={() => setShowFinalizeReview(false)}
+            >
+              <div
+                className="modal finalize-review-modal"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="modal-header">
+                  <h3>Проверка перед закрытием</h3>
+                  <button
+                    className="close-btn"
+                    onClick={() => setShowFinalizeReview(false)}
+                  >
+                    ✕
+                  </button>
+                </div>
 
-              {hasUnclaimed ? (
-                <>
-                  <div className="finalize-notice">
-                    <p>⚠️ Есть нераспределённые позиции. Вы можете распределить их вручную или оставить автоматическое распределение (поровну).</p>
+                {hasUnclaimed ? (
+                  <>
+                    <div className="finalize-notice">
+                      <p>
+                        ⚠️ Есть нераспределённые позиции. Вы можете распределить
+                        их вручную или оставить автоматическое распределение
+                        (поровну).
+                      </p>
+                    </div>
+
+                    <div className="unclaimed-items">
+                      <h4>Нераспределённые позиции:</h4>
+                      {unclaimedItems.map((item) => {
+                        const claimedQty = item.claims.reduce(
+                          (sum, c) => sum + c.quantity,
+                          0
+                        );
+                        const manualForItem = manualDistribution[item.id] || {};
+                        const manualTotal = Object.values(manualForItem).reduce(
+                          (sum, q) => sum + q,
+                          0
+                        );
+                        const stillUnclaimed =
+                          item.quantity - claimedQty - manualTotal;
+                        const unitCost = item.totalPrice / item.quantity;
+
+                        return (
+                          <div key={item.id} className="unclaimed-item">
+                            <div className="unclaimed-item-header">
+                              <span className="item-name">{item.name}</span>
+                              <span className="item-unclaimed">
+                                Осталось: {stillUnclaimed} из {item.quantity} (
+                                {(unitCost * stillUnclaimed).toFixed(0)}{" "}
+                                {viewingReceipt.currency})
+                              </span>
+                            </div>
+                            {stillUnclaimed > 0 && (
+                              <div className="manual-distribution">
+                                {viewingReceipt.members.map((member) => {
+                                  const manualQty =
+                                    manualForItem[member.id] || 0;
+                                  return (
+                                    <div
+                                      key={member.id}
+                                      className="manual-dist-row"
+                                    >
+                                      <span className="dist-user">
+                                        {member.firstName ||
+                                          member.username ||
+                                          "?"}
+                                      </span>
+                                      <div className="dist-controls">
+                                        <button
+                                          className="qty-btn"
+                                          disabled={manualQty === 0}
+                                          onClick={() =>
+                                            handleManualChange(
+                                              item.id,
+                                              member.id,
+                                              -1
+                                            )
+                                          }
+                                        >
+                                          −
+                                        </button>
+                                        <span className="qty-value">
+                                          {manualQty}
+                                        </span>
+                                        <button
+                                          className="qty-btn"
+                                          disabled={stillUnclaimed === 0}
+                                          onClick={() =>
+                                            handleManualChange(
+                                              item.id,
+                                              member.id,
+                                              1
+                                            )
+                                          }
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <div className="finalize-notice success">
+                    <p>✓ Все позиции распределены участниками.</p>
                   </div>
+                )}
 
-                  <div className="unclaimed-items">
-                    <h4>Нераспределённые позиции:</h4>
-                    {unclaimedItems.map(item => {
-                      const claimedQty = item.claims.reduce((sum, c) => sum + c.quantity, 0);
-                      const manualForItem = manualDistribution[item.id] || {};
-                      const manualTotal = Object.values(manualForItem).reduce((sum, q) => sum + q, 0);
-                      const stillUnclaimed = item.quantity - claimedQty - manualTotal;
-                      const unitCost = item.totalPrice / item.quantity;
-
+                {/* Итоговое распределение */}
+                <div className="final-distribution">
+                  <h4>Итоговое распределение:</h4>
+                  <div className="shares-list">
+                    {viewingReceipt.members.map((member) => {
+                      const owed = finalOwed[member.id] || 0;
+                      const isMe = member.id === user?.id;
                       return (
-                        <div key={item.id} className="unclaimed-item">
-                          <div className="unclaimed-item-header">
-                            <span className="item-name">{item.name}</span>
-                            <span className="item-unclaimed">
-                              Осталось: {stillUnclaimed} из {item.quantity} ({(unitCost * stillUnclaimed).toFixed(0)} {viewingReceipt.currency})
+                        <div
+                          key={member.id}
+                          className={`share-row ${isMe ? "me" : ""}`}
+                        >
+                          <div className="share-user">
+                            <div className="share-avatar">
+                              {member.avatarUrl ? (
+                                <img src={member.avatarUrl} alt="" />
+                              ) : (
+                                <span>
+                                  {
+                                    (member.firstName ||
+                                      member.username ||
+                                      "?")[0]
+                                  }
+                                </span>
+                              )}
+                            </div>
+                            <span className="share-name">
+                              {isMe
+                                ? "Вы"
+                                : member.firstName || member.username || "?"}
                             </span>
                           </div>
-                          {stillUnclaimed > 0 && (
-                            <div className="manual-distribution">
-                              {viewingReceipt.members.map(member => {
-                                const manualQty = manualForItem[member.id] || 0;
-                                return (
-                                  <div key={member.id} className="manual-dist-row">
-                                    <span className="dist-user">{member.firstName || member.username || "?"}</span>
-                                    <div className="dist-controls">
-                                      <button
-                                        className="qty-btn"
-                                        disabled={manualQty === 0}
-                                        onClick={() => handleManualChange(item.id, member.id, -1)}
-                                      >−</button>
-                                      <span className="qty-value">{manualQty}</span>
-                                      <button
-                                        className="qty-btn"
-                                        disabled={stillUnclaimed === 0}
-                                        onClick={() => handleManualChange(item.id, member.id, 1)}
-                                      >+</button>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
+                          <span className="share-amount">
+                            {owed.toFixed(0)} {viewingReceipt.currency}
+                          </span>
                         </div>
                       );
                     })}
                   </div>
-                </>
-              ) : (
-                <div className="finalize-notice success">
-                  <p>✓ Все позиции распределены участниками.</p>
                 </div>
-              )}
 
-              {/* Итоговое распределение */}
-              <div className="final-distribution">
-                <h4>Итоговое распределение:</h4>
-                <div className="shares-list">
-                  {viewingReceipt.members.map(member => {
-                    const owed = finalOwed[member.id] || 0;
-                    const isMe = member.id === user?.id;
-                    return (
-                      <div key={member.id} className={`share-row ${isMe ? "me" : ""}`}>
-                        <div className="share-user">
-                          <div className="share-avatar">
-                            {member.avatarUrl ? (
-                              <img src={member.avatarUrl} alt="" />
-                            ) : (
-                              <span>{(member.firstName || member.username || "?")[0]}</span>
-                            )}
-                          </div>
-                          <span className="share-name">{isMe ? "Вы" : (member.firstName || member.username || "?")}</span>
-                        </div>
-                        <span className="share-amount">{owed.toFixed(0)} {viewingReceipt.currency}</span>
-                      </div>
-                    );
-                  })}
+                <div className="finalize-actions">
+                  <button
+                    className="secondary-btn"
+                    onClick={() => setShowFinalizeReview(false)}
+                  >
+                    Назад
+                  </button>
+                  <button
+                    className="primary-btn"
+                    disabled={receiptClaimLoading}
+                    onClick={handleFinalize}
+                  >
+                    {receiptClaimLoading ? "Закрываю..." : "Закрыть чек"}
+                  </button>
                 </div>
-              </div>
-
-              <div className="finalize-actions">
-                <button className="secondary-btn" onClick={() => setShowFinalizeReview(false)}>
-                  Назад
-                </button>
-                <button
-                  className="primary-btn"
-                  disabled={receiptClaimLoading}
-                  onClick={handleFinalize}
-                >
-                  {receiptClaimLoading ? "Закрываю..." : "Закрыть чек"}
-                </button>
               </div>
             </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
 
       {/* Trip Summary Screen */}
       {showTripSummary &&

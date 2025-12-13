@@ -10,7 +10,11 @@ export async function seedGroup345(prisma: PrismaClient) {
   const devMaria = await prisma.user.upsert({
     where: { telegramId: "dev_222" },
     update: {},
-    create: { telegramId: "dev_222", username: "maria_dev", firstName: "Мария" },
+    create: {
+      telegramId: "dev_222",
+      username: "maria_dev",
+      firstName: "Мария",
+    },
   });
 
   const devIvan = await prisma.user.upsert({
@@ -88,28 +92,160 @@ export async function seedGroup345(prisma: PrismaClient) {
   });
 
   const expenses = [
-    { date: "2024-12-05", desc: "Такси из аэропорта", amount: 45, payer: devAlex, category: "transport" },
-    { date: "2024-12-05", desc: "Ужин в ресторане", amount: 120, payer: devMaria, category: "food" },
-    { date: "2024-12-05", desc: "Вино в магазине", amount: 35, payer: devIvan, category: "food" },
-    { date: "2024-12-06", desc: "Экскурсия в Мцхету", amount: 180, payer: devAlex, category: "activities" },
-    { date: "2024-12-06", desc: "Обед в Мцхете", amount: 85, payer: devMaria, category: "food" },
-    { date: "2024-12-06", desc: "Сувениры", amount: 60, payer: devIvan, category: "shopping" },
-    { date: "2024-12-07", desc: "Аренда машины", amount: 250, payer: devAlex, category: "transport" },
-    { date: "2024-12-07", desc: "Бензин", amount: 80, payer: devAlex, category: "transport" },
-    { date: "2024-12-07", desc: "Обед в Казбеги", amount: 95, payer: devMaria, category: "food" },
-    { date: "2024-12-07", desc: "Канатка на Гудаури", amount: 90, payer: devIvan, category: "activities" },
-    { date: "2024-12-07", desc: "Ужин с хинкали", amount: 110, payer: devMaria, category: "food" },
-    { date: "2024-12-08", desc: "Завтрак в отеле", amount: 45, payer: devIvan, category: "food" },
-    { date: "2024-12-08", desc: "Дегустация вина", amount: 150, payer: devAlex, category: "activities" },
-    { date: "2024-12-08", desc: "Покупка вина домой", amount: 200, payer: devMaria, category: "shopping" },
-    { date: "2024-12-09", desc: "Серные бани", amount: 75, payer: devIvan, category: "activities" },
-    { date: "2024-12-09", desc: "Массаж", amount: 120, payer: devMaria, category: "activities" },
-    { date: "2024-12-09", desc: "Ужин на крыше", amount: 180, payer: devAlex, category: "food" },
-    { date: "2024-12-10", desc: "Рынок Дезертирка", amount: 95, payer: devMaria, category: "shopping" },
-    { date: "2024-12-10", desc: "Уличная еда", amount: 40, payer: devIvan, category: "food" },
-    { date: "2024-12-10", desc: "Кофейня", amount: 25, payer: devAlex, category: "food" },
-    { date: "2024-12-11", desc: "Такси в аэропорт", amount: 50, payer: devAlex, category: "transport" },
-    { date: "2024-12-11", desc: "Еда в аэропорту", amount: 55, payer: devMaria, category: "food" },
+    {
+      date: "2024-12-05",
+      desc: "Такси из аэропорта",
+      amount: 45,
+      payer: devAlex,
+      category: "transport",
+    },
+    {
+      date: "2024-12-05",
+      desc: "Ужин в ресторане",
+      amount: 120,
+      payer: devMaria,
+      category: "food",
+    },
+    {
+      date: "2024-12-05",
+      desc: "Вино в магазине",
+      amount: 35,
+      payer: devIvan,
+      category: "food",
+    },
+    {
+      date: "2024-12-06",
+      desc: "Экскурсия в Мцхету",
+      amount: 180,
+      payer: devAlex,
+      category: "activities",
+    },
+    {
+      date: "2024-12-06",
+      desc: "Обед в Мцхете",
+      amount: 85,
+      payer: devMaria,
+      category: "food",
+    },
+    {
+      date: "2024-12-06",
+      desc: "Сувениры",
+      amount: 60,
+      payer: devIvan,
+      category: "shopping",
+    },
+    {
+      date: "2024-12-07",
+      desc: "Аренда машины",
+      amount: 250,
+      payer: devAlex,
+      category: "transport",
+    },
+    {
+      date: "2024-12-07",
+      desc: "Бензин",
+      amount: 80,
+      payer: devAlex,
+      category: "transport",
+    },
+    {
+      date: "2024-12-07",
+      desc: "Обед в Казбеги",
+      amount: 95,
+      payer: devMaria,
+      category: "food",
+    },
+    {
+      date: "2024-12-07",
+      desc: "Канатка на Гудаури",
+      amount: 90,
+      payer: devIvan,
+      category: "activities",
+    },
+    {
+      date: "2024-12-07",
+      desc: "Ужин с хинкали",
+      amount: 110,
+      payer: devMaria,
+      category: "food",
+    },
+    {
+      date: "2024-12-08",
+      desc: "Завтрак в отеле",
+      amount: 45,
+      payer: devIvan,
+      category: "food",
+    },
+    {
+      date: "2024-12-08",
+      desc: "Дегустация вина",
+      amount: 150,
+      payer: devAlex,
+      category: "activities",
+    },
+    {
+      date: "2024-12-08",
+      desc: "Покупка вина домой",
+      amount: 200,
+      payer: devMaria,
+      category: "shopping",
+    },
+    {
+      date: "2024-12-09",
+      desc: "Серные бани",
+      amount: 75,
+      payer: devIvan,
+      category: "activities",
+    },
+    {
+      date: "2024-12-09",
+      desc: "Массаж",
+      amount: 120,
+      payer: devMaria,
+      category: "activities",
+    },
+    {
+      date: "2024-12-09",
+      desc: "Ужин на крыше",
+      amount: 180,
+      payer: devAlex,
+      category: "food",
+    },
+    {
+      date: "2024-12-10",
+      desc: "Рынок Дезертирка",
+      amount: 95,
+      payer: devMaria,
+      category: "shopping",
+    },
+    {
+      date: "2024-12-10",
+      desc: "Уличная еда",
+      amount: 40,
+      payer: devIvan,
+      category: "food",
+    },
+    {
+      date: "2024-12-10",
+      desc: "Кофейня",
+      amount: 25,
+      payer: devAlex,
+      category: "food",
+    },
+    {
+      date: "2024-12-11",
+      desc: "Такси в аэропорт",
+      amount: 50,
+      payer: devAlex,
+      category: "transport",
+    },
+    {
+      date: "2024-12-11",
+      desc: "Еда в аэропорту",
+      amount: 55,
+      payer: devMaria,
+      category: "food",
+    },
   ];
 
   const allUsers = [devAlex, devMaria, devIvan];
@@ -158,4 +294,3 @@ export async function seedGroup345(prisma: PrismaClient) {
 
   console.log("Group 345 seeded with mock data");
 }
-

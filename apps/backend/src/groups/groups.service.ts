@@ -77,8 +77,18 @@ export class GroupsService {
       return {};
     }
 
-    const { homeCurrency, settlementCurrency, fixedFxRates, fixedFxDate, fixedFxSource } = group;
-    console.log("[ensureHomeFxRate] Group data:", { homeCurrency, settlementCurrency, fixedFxRates });
+    const {
+      homeCurrency,
+      settlementCurrency,
+      fixedFxRates,
+      fixedFxDate,
+      fixedFxSource,
+    } = group;
+    console.log("[ensureHomeFxRate] Group data:", {
+      homeCurrency,
+      settlementCurrency,
+      fixedFxRates,
+    });
 
     // Если homeCurrency не задана или совпадает с settlementCurrency — не нужен курс
     if (!homeCurrency || homeCurrency === settlementCurrency) {
@@ -132,7 +142,12 @@ export class GroupsService {
         result?: string;
         rates?: Record<string, number>;
       };
-      console.log("[ensureHomeFxRate] Response result:", data.result, "has rates:", !!data.rates);
+      console.log(
+        "[ensureHomeFxRate] Response result:",
+        data.result,
+        "has rates:",
+        !!data.rates
+      );
       if (data.result !== "success" || !data.rates) {
         console.log("[ensureHomeFxRate] No success/rates in response");
         return {};
@@ -191,7 +206,9 @@ export class GroupsService {
       },
       select: { groupId: true },
     });
-    const groupsWithTripPass = new Set(activeEntitlements.map((e) => e.groupId));
+    const groupsWithTripPass = new Set(
+      activeEntitlements.map((e) => e.groupId)
+    );
 
     return memberships.map((member) => {
       // Рассчитываем баланс пользователя в этой группе
@@ -549,7 +566,10 @@ export class GroupsService {
       imageUrl = await this.uploadService.uploadGroupImage(image, groupId);
     }
 
-    if (dto.settlementCurrency && dto.settlementCurrency !== group.settlementCurrency) {
+    if (
+      dto.settlementCurrency &&
+      dto.settlementCurrency !== group.settlementCurrency
+    ) {
       const [expensesCount, settlementsCount] = await Promise.all([
         this.prisma.expense.count({ where: { groupId } }),
         this.prisma.settlement.count({ where: { groupId } }),
@@ -567,19 +587,29 @@ export class GroupsService {
 
     // Сбрасываем кэш курсов при смене любой валюты
     const currencyChanged =
-      (dto.settlementCurrency && dto.settlementCurrency !== group.settlementCurrency) ||
-      (dto.homeCurrency !== undefined && dto.homeCurrency !== group.homeCurrency);
+      (dto.settlementCurrency &&
+        dto.settlementCurrency !== group.settlementCurrency) ||
+      (dto.homeCurrency !== undefined &&
+        dto.homeCurrency !== group.homeCurrency);
 
     return this.prisma.group.update({
       where: { id: groupId },
       data: {
         ...(dto.name && { name: dto.name }),
-        ...(dto.settlementCurrency && { settlementCurrency: dto.settlementCurrency }),
-        ...(dto.homeCurrency !== undefined && { homeCurrency: dto.homeCurrency }),
+        ...(dto.settlementCurrency && {
+          settlementCurrency: dto.settlementCurrency,
+        }),
+        ...(dto.homeCurrency !== undefined && {
+          homeCurrency: dto.homeCurrency,
+        }),
         ...(fxMode && { fxMode }),
-        ...(dto.fixedFxRates !== undefined && { fixedFxRates: dto.fixedFxRates }),
+        ...(dto.fixedFxRates !== undefined && {
+          fixedFxRates: dto.fixedFxRates,
+        }),
         ...(fixedFxDate && { fixedFxDate }),
-        ...(dto.fixedFxSource !== undefined && { fixedFxSource: dto.fixedFxSource }),
+        ...(dto.fixedFxSource !== undefined && {
+          fixedFxSource: dto.fixedFxSource,
+        }),
         ...(imageUrl && { imageUrl }),
         // Сбрасываем кэш курсов при смене валюты
         ...(currencyChanged && {
@@ -799,7 +829,8 @@ export class GroupsService {
       spendingByDay[dayKey] = (spendingByDay[dayKey] || 0) + amount;
     });
 
-    const avgPerPerson = memberIds.length > 0 ? groupTotalSpent / memberIds.length : 0;
+    const avgPerPerson =
+      memberIds.length > 0 ? groupTotalSpent / memberIds.length : 0;
 
     // avgPerDay: по количеству уникальных дней с тратами
     const dayKeys = Object.keys(spendingByDay);
@@ -836,7 +867,8 @@ export class GroupsService {
     }
 
     // mostFrequentParticipant
-    let mostFrequentParticipant: { userId: string; count: number } | null = null;
+    let mostFrequentParticipant: { userId: string; count: number } | null =
+      null;
     for (const [uid, count] of Object.entries(participationCount)) {
       if (!mostFrequentParticipant || count > mostFrequentParticipant.count) {
         mostFrequentParticipant = { userId: uid, count };
@@ -885,11 +917,15 @@ export class GroupsService {
         avgPerPerson,
         avgPerDay,
         mostExpensiveDay,
-        expensesCount: group.expenses.filter(e => !e.isSystem).length,
+        expensesCount: group.expenses.filter((e) => !e.isSystem).length,
       },
       roles: {
         topPayer: topPayer
-          ? { userId: topPayer.userId, name: userNames[topPayer.userId], amount: topPayer.amount }
+          ? {
+              userId: topPayer.userId,
+              name: userNames[topPayer.userId],
+              amount: topPayer.amount,
+            }
           : null,
         mostFrequentParticipant: mostFrequentParticipant
           ? {
@@ -899,10 +935,18 @@ export class GroupsService {
             }
           : null,
         topDebtor: topDebtor
-          ? { userId: topDebtor.userId, name: userNames[topDebtor.userId], amount: topDebtor.amount }
+          ? {
+              userId: topDebtor.userId,
+              name: userNames[topDebtor.userId],
+              amount: topDebtor.amount,
+            }
           : null,
         topCreditor: topCreditor
-          ? { userId: topCreditor.userId, name: userNames[topCreditor.userId], amount: topCreditor.amount }
+          ? {
+              userId: topCreditor.userId,
+              name: userNames[topCreditor.userId],
+              amount: topCreditor.amount,
+            }
           : null,
       },
       finalPlan: finalPlan.map((t) => ({
@@ -958,7 +1002,14 @@ export class GroupsService {
     });
     if (!group) return {};
 
-    const { homeCurrency, settlementCurrency, fixedFxRates, fixedFxDate, fixedFxSource, closedAt } = group;
+    const {
+      homeCurrency,
+      settlementCurrency,
+      fixedFxRates,
+      fixedFxDate,
+      fixedFxSource,
+      closedAt,
+    } = group;
 
     if (!homeCurrency || homeCurrency === settlementCurrency) {
       return {};
@@ -1046,7 +1097,11 @@ export class GroupsService {
     debtors.sort((a, b) => b.amount - a.amount);
     creditors.sort((a, b) => b.amount - a.amount);
 
-    const transfers: { fromUserId: string; toUserId: string; amount: number }[] = [];
+    const transfers: {
+      fromUserId: string;
+      toUserId: string;
+      amount: number;
+    }[] = [];
 
     let di = 0;
     let ci = 0;

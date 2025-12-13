@@ -14,7 +14,8 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-input, textarea {
+input,
+textarea {
   user-select: text;
   -webkit-user-select: text;
 }
@@ -192,16 +193,21 @@ input, textarea {
   color: var(--text-secondary);
 }
 
-.header-trip-pass-badge {
+.header-about-btn {
   padding: 6px 12px;
-  background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+  background: transparent;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
   border-radius: var(--radius-full);
-  color: white;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  box-shadow: 0 2px 8px rgba(179, 157, 219, 0.4);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.header-about-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
 }
 
 .header-action-btn {
@@ -685,6 +691,14 @@ input, textarea {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.group-trip-pass-badge {
+  font-size: 12px;
+  flex-shrink: 0;
 }
 
 .group-item-meta {
@@ -1277,6 +1291,31 @@ input, textarea {
 .close-btn:active {
   transform: scale(0.95);
   background: rgba(255, 255, 255, 0.2);
+}
+
+/* About Product Modal */
+.about-product-modal {
+  max-width: 400px;
+}
+
+.about-product-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.about-section h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.about-section p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
 }
 
 /* ===== FORMS ===== */
@@ -1873,19 +1912,28 @@ input::placeholder {
 }
 
 .trip-summary-hero::before {
-  content: '';
+  content: "";
   position: absolute;
   top: -50%;
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.1) 0%,
+    transparent 60%
+  );
   animation: shimmer 3s ease-in-out infinite;
 }
 
 @keyframes shimmer {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(10%, 10%); }
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(10%, 10%);
+  }
 }
 
 .trip-summary-hero-icon {
@@ -1965,7 +2013,11 @@ input::placeholder {
 
 .stats-card-total {
   grid-column: span 3;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.3) 0%, rgba(118, 75, 162, 0.3) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(102, 126, 234, 0.3) 0%,
+    rgba(118, 75, 162, 0.3) 100%
+  );
   border: 1px solid rgba(102, 126, 234, 0.3);
 }
 
@@ -2149,7 +2201,11 @@ input::placeholder {
 }
 
 .role-highlight {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(102, 126, 234, 0.2) 0%,
+    rgba(118, 75, 162, 0.2) 100%
+  );
   border: 1px solid rgba(102, 126, 234, 0.3);
 }
 
@@ -2891,13 +2947,19 @@ input::placeholder {
 }
 
 .secondary-btn::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: var(--radius-md);
   padding: 2px;
-  background: linear-gradient(135deg, rgba(179, 157, 219, 0.3), rgba(232, 121, 160, 0.3));
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  background: linear-gradient(
+    135deg,
+    rgba(179, 157, 219, 0.3),
+    rgba(232, 121, 160, 0.3)
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
 }

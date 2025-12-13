@@ -27,8 +27,8 @@ interface PricingSnapshot {
   baseSettlementFeeAmount: number;
   effectiveStarsPrice: number;
   effectiveSettlementFeeAmount: number;
-  discountType: 'NONE' | 'PERCENT' | 'FIXED_OVERRIDE';
-  discountSource: 'none' | 'promo' | 'global';
+  discountType: "NONE" | "PERCENT" | "FIXED_OVERRIDE";
+  discountSource: "none" | "promo" | "global";
   percentOff?: number;
   promoCode?: string;
 }
@@ -86,8 +86,8 @@ export class MonetizationService {
       params.settlementCurrency
     );
 
-    let discountType: PricingSnapshot['discountType'] = 'NONE';
-    let discountSource: PricingSnapshot['discountSource'] = 'none';
+    let discountType: PricingSnapshot["discountType"] = "NONE";
+    let discountSource: PricingSnapshot["discountSource"] = "none";
     let percentOff: number | undefined;
     let effectiveStarsPrice = baseStarsPrice;
     let effectiveSettlementFeeAmount = baseSettlementFeeAmount;
@@ -100,22 +100,33 @@ export class MonetizationService {
       });
       if (promo && promo.enabled && promo.productCode === params.product.code) {
         // Проверяем лимит использований
-        if (!promo.maxRedemptions || promo.redeemedCount < promo.maxRedemptions) {
-          discountSource = 'promo';
+        if (
+          !promo.maxRedemptions ||
+          promo.redeemedCount < promo.maxRedemptions
+        ) {
+          discountSource = "promo";
           discountType = promo.discountType;
           appliedPromoCode = promo.code;
 
-          if (promo.discountType === 'PERCENT' && promo.percentOff) {
+          if (promo.discountType === "PERCENT" && promo.percentOff) {
             percentOff = promo.percentOff;
-            effectiveStarsPrice = Math.max(1, Math.round(baseStarsPrice * (100 - promo.percentOff) / 100));
-            effectiveSettlementFeeAmount = round2(baseSettlementFeeAmount * (100 - promo.percentOff) / 100);
-          } else if (promo.discountType === 'FIXED_OVERRIDE') {
+            effectiveStarsPrice = Math.max(
+              1,
+              Math.round((baseStarsPrice * (100 - promo.percentOff)) / 100)
+            );
+            effectiveSettlementFeeAmount = round2(
+              (baseSettlementFeeAmount * (100 - promo.percentOff)) / 100
+            );
+          } else if (promo.discountType === "FIXED_OVERRIDE") {
             if (promo.starsPriceOverride != null) {
               effectiveStarsPrice = promo.starsPriceOverride;
             }
-            const overrideMap = (promo.priceBySettlementCurrencyOverride ?? {}) as Record<string, number>;
+            const overrideMap = (promo.priceBySettlementCurrencyOverride ??
+              {}) as Record<string, number>;
             if (overrideMap[params.settlementCurrency] != null) {
-              effectiveSettlementFeeAmount = round2(overrideMap[params.settlementCurrency]);
+              effectiveSettlementFeeAmount = round2(
+                overrideMap[params.settlementCurrency]
+              );
             }
           }
         }
@@ -123,25 +134,33 @@ export class MonetizationService {
     }
 
     // 2. Если промокод не применён, проверяем глобальную скидку
-    if (discountSource === 'none') {
+    if (discountSource === "none") {
       const pricing = await this.prisma.productPricing.findUnique({
         where: { productCode: params.product.code },
       });
-      if (pricing && pricing.enabled && pricing.globalDiscountType !== 'NONE') {
-        discountSource = 'global';
+      if (pricing && pricing.enabled && pricing.globalDiscountType !== "NONE") {
+        discountSource = "global";
         discountType = pricing.globalDiscountType;
 
-        if (pricing.globalDiscountType === 'PERCENT' && pricing.percentOff) {
+        if (pricing.globalDiscountType === "PERCENT" && pricing.percentOff) {
           percentOff = pricing.percentOff;
-          effectiveStarsPrice = Math.max(1, Math.round(baseStarsPrice * (100 - pricing.percentOff) / 100));
-          effectiveSettlementFeeAmount = round2(baseSettlementFeeAmount * (100 - pricing.percentOff) / 100);
-        } else if (pricing.globalDiscountType === 'FIXED_OVERRIDE') {
+          effectiveStarsPrice = Math.max(
+            1,
+            Math.round((baseStarsPrice * (100 - pricing.percentOff)) / 100)
+          );
+          effectiveSettlementFeeAmount = round2(
+            (baseSettlementFeeAmount * (100 - pricing.percentOff)) / 100
+          );
+        } else if (pricing.globalDiscountType === "FIXED_OVERRIDE") {
           if (pricing.starsPriceOverride != null) {
             effectiveStarsPrice = pricing.starsPriceOverride;
           }
-          const overrideMap = (pricing.priceBySettlementCurrencyOverride ?? {}) as Record<string, number>;
+          const overrideMap = (pricing.priceBySettlementCurrencyOverride ??
+            {}) as Record<string, number>;
           if (overrideMap[params.settlementCurrency] != null) {
-            effectiveSettlementFeeAmount = round2(overrideMap[params.settlementCurrency]);
+            effectiveSettlementFeeAmount = round2(
+              overrideMap[params.settlementCurrency]
+            );
           }
         }
       }
@@ -256,7 +275,9 @@ export class MonetizationService {
       payload: invoicePayload,
       provider_token: "",
       currency: "XTR",
-      prices: [{ label: product.title, amount: pricingSnapshot.effectiveStarsPrice }],
+      prices: [
+        { label: product.title, amount: pricingSnapshot.effectiveStarsPrice },
+      ],
     })) as unknown as string;
 
     return { invoiceLink, purchaseId: purchase.id };
@@ -308,7 +329,8 @@ export class MonetizationService {
     const remainder = totalCents - base * memberIds.length;
 
     const shares = memberIds.map((userId: string) => {
-      const owedCents = base + (userId === purchase.buyerUserId ? remainder : 0);
+      const owedCents =
+        base + (userId === purchase.buyerUserId ? remainder : 0);
       const paidCents = userId === purchase.buyerUserId ? totalCents : 0;
       return {
         userId,
@@ -420,7 +442,8 @@ export class MonetizationService {
   }) {
     if (!this.isDev && !this.isTestEnv)
       throw new ForbiddenException("Dev endpoint disabled");
-    if (!params.purchaseId) throw new BadRequestException("purchaseId is required");
+    if (!params.purchaseId)
+      throw new BadRequestException("purchaseId is required");
 
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: params.purchaseId },
@@ -429,7 +452,11 @@ export class MonetizationService {
     if (!purchase) throw new BadRequestException("Покупка не найдена");
 
     const member = await this.prisma.groupMember.findFirst({
-      where: { groupId: purchase.groupId, userId: params.buyerUserId, isActive: true },
+      where: {
+        groupId: purchase.groupId,
+        userId: params.buyerUserId,
+        isActive: true,
+      },
       select: { id: true },
     });
     if (!member) throw new ForbiddenException("Нет доступа к группе");
@@ -450,7 +477,10 @@ export class MonetizationService {
     return this.getTripPassStatus(purchase.groupId, params.buyerUserId);
   }
 
-  async getTripPassStatus(groupId: string, userId: string): Promise<{
+  async getTripPassStatus(
+    groupId: string,
+    userId: string
+  ): Promise<{
     active: boolean;
     endsAt?: string;
   }> {
@@ -475,7 +505,11 @@ export class MonetizationService {
     return { active: true, endsAt: entitlement.endsAt.toISOString() };
   }
 
-  async devToggleTripPass(params: { groupId: string; userId: string; active: boolean }) {
+  async devToggleTripPass(params: {
+    groupId: string;
+    userId: string;
+    active: boolean;
+  }) {
     if (!this.isDev && !this.isTestEnv)
       throw new ForbiddenException("Dev endpoint disabled");
 
@@ -543,7 +577,9 @@ export class MonetizationService {
 
     if (!purchase) throw new BadRequestException("Покупка не найдена");
     if (purchase.buyerUserId !== params.userId) {
-      throw new ForbiddenException("Только покупатель может разделить стоимость");
+      throw new ForbiddenException(
+        "Только покупатель может разделить стоимость"
+      );
     }
     if (purchase.status !== "PAID") {
       throw new BadRequestException("Покупка не оплачена");
@@ -576,7 +612,8 @@ export class MonetizationService {
     const remainder = totalCents - base * memberIds.length;
 
     const shares = memberIds.map((userId: string) => {
-      const owedCents = base + (userId === purchase.buyerUserId ? remainder : 0);
+      const owedCents =
+        base + (userId === purchase.buyerUserId ? remainder : 0);
       const paidCents = userId === purchase.buyerUserId ? totalCents : 0;
       return {
         userId,
@@ -612,5 +649,3 @@ export class MonetizationService {
     return { success: true };
   }
 }
-
-
