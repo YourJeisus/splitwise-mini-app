@@ -2075,6 +2075,7 @@ function MainApp() {
                               item.id
                             );
                             if (receipt) {
+                              window.Telegram?.WebApp?.HapticFeedback?.impactOccurred("medium");
                               setViewingReceipt(receipt);
                             }
                           } catch (err) {
