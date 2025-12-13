@@ -1464,6 +1464,7 @@ input::placeholder {
 .invite-modal {
   text-align: center;
   padding: 32px 24px;
+  padding-bottom: calc(32px + var(--safe-area-bottom));
 }
 
 .invite-icon {
@@ -1528,6 +1529,7 @@ input::placeholder {
 .confirm-modal {
   text-align: center;
   padding: 32px 24px;
+  padding-bottom: calc(32px + var(--safe-area-bottom));
 }
 
 .confirm-icon {
@@ -1738,9 +1740,9 @@ input::placeholder {
 /* ===== TOAST TIP ===== */
 .toast-tip {
   position: fixed;
-  bottom: 24px;
-  left: 16px;
-  right: 16px;
+  bottom: calc(24px + var(--safe-area-bottom));
+  left: calc(16px + var(--safe-area-left));
+  right: calc(16px + var(--safe-area-right));
   max-width: 448px;
   margin: 0 auto;
   background: var(--bg-card);
@@ -1816,9 +1818,10 @@ input::placeholder {
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   width: 100%;
   max-width: 480px;
-  max-height: 90vh;
+  max-height: calc(90vh - var(--safe-area-top));
   overflow-y: auto;
   animation: slideUp 0.3s ease;
+  padding-bottom: var(--safe-area-bottom);
 }
 
 .trip-summary-header {
@@ -3789,8 +3792,9 @@ input::placeholder {
 
 /* ===== FINALIZE REVIEW MODAL ===== */
 .finalize-review-modal {
-  max-height: 90vh;
+  max-height: calc(90vh - var(--safe-area-top));
   overflow-y: auto;
+  padding-bottom: calc(24px + var(--safe-area-bottom));
 }
 
 .finalize-notice {
