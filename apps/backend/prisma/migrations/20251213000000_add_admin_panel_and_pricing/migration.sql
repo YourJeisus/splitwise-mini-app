@@ -105,3 +105,4 @@ ALTER TABLE "PromoCode" ADD CONSTRAINT "PromoCode_productCode_fkey" FOREIGN KEY 
 -- AddForeignKey
 ALTER TABLE "AdminAuditLog" ADD CONSTRAINT "AdminAuditLog_adminId_fkey" FOREIGN KEY ("adminId") REFERENCES "AdminUser"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
+

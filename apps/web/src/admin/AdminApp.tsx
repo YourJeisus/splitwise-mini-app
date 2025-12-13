@@ -4,11 +4,20 @@ import { DashboardTab } from "./tabs/DashboardTab";
 import { UsersTab } from "./tabs/UsersTab";
 import "./AdminApp.css";
 
-type Tab = "dashboard" | "users" | "groups" | "sales" | "products" | "logs";
+type Tab =
+  | "dashboard"
+  | "users"
+  | "groups"
+  | "sales"
+  | "products"
+  | "tracking"
+  | "logs";
 
 export function AdminApp() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [admin, setAdmin] = useState<{ email: string; role: string } | null>(null);
+  const [admin, setAdmin] = useState<{ email: string; role: string } | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [loginError, setLoginError] = useState("");
@@ -89,12 +98,24 @@ export function AdminApp() {
       <header className="admin-header">
         <h1>Админ-панель</h1>
         <div className="admin-header-right">
-          <span>{admin?.email} ({admin?.role})</span>
+          <span>
+            {admin?.email} ({admin?.role})
+          </span>
           <button onClick={handleLogout}>Выйти</button>
         </div>
       </header>
       <nav className="admin-nav">
-        {(["dashboard", "users", "groups", "sales", "products", "logs"] as Tab[]).map((tab) => (
+        {(
+          [
+            "dashboard",
+            "users",
+            "groups",
+            "sales",
+            "products",
+            "tracking",
+            "logs",
+          ] as Tab[]
+        ).map((tab) => (
           <button
             key={tab}
             className={activeTab === tab ? "active" : ""}
@@ -105,6 +126,7 @@ export function AdminApp() {
             {tab === "groups" && "Группы"}
             {tab === "sales" && "Продажи"}
             {tab === "products" && "Продукты"}
+            {tab === "tracking" && "Ссылки"}
             {tab === "logs" && "Логи"}
           </button>
         ))}
@@ -115,6 +137,7 @@ export function AdminApp() {
         {activeTab === "groups" && <GroupsTab />}
         {activeTab === "sales" && <SalesTab role={admin?.role || ""} />}
         {activeTab === "products" && <ProductsTab role={admin?.role || ""} />}
+        {activeTab === "tracking" && <TrackingTab role={admin?.role || ""} />}
         {activeTab === "logs" && <LogsTab />}
       </main>
     </div>
@@ -183,9 +206,18 @@ function GroupsTab() {
             </tbody>
           </table>
           <div className="pagination">
-            <button disabled={page <= 1} onClick={() => setPage(page - 1)}>←</button>
-            <span>Страница {page} / {Math.ceil(total / 50)}</span>
-            <button disabled={page >= Math.ceil(total / 50)} onClick={() => setPage(page + 1)}>→</button>
+            <button disabled={page <= 1} onClick={() => setPage(page - 1)}>
+              ←
+            </button>
+            <span>
+              Страница {page} / {Math.ceil(total / 50)}
+            </span>
+            <button
+              disabled={page >= Math.ceil(total / 50)}
+              onClick={() => setPage(page + 1)}
+            >
+              →
+            </button>
           </div>
         </>
       )}
@@ -235,7 +267,9 @@ function SalesTab({ role: _role }: { role: string }) {
                   <td>{new Date(p.createdAt).toLocaleString()}</td>
                   <td>{p.product?.title || p.productCode}</td>
                   <td>{p.starsAmount} ⭐</td>
-                  <td className={`status-${p.status.toLowerCase()}`}>{p.status}</td>
+                  <td className={`status-${p.status.toLowerCase()}`}>
+                    {p.status}
+                  </td>
                   <td>{p.buyer?.firstName || p.buyerUserId?.slice(0, 8)}</td>
                   <td>{p.group?.name || p.groupId?.slice(0, 8)}</td>
                 </tr>
@@ -243,9 +277,18 @@ function SalesTab({ role: _role }: { role: string }) {
             </tbody>
           </table>
           <div className="pagination">
-            <button disabled={page <= 1} onClick={() => setPage(page - 1)}>←</button>
-            <span>Страница {page} / {Math.ceil(total / 50)}</span>
-            <button disabled={page >= Math.ceil(total / 50)} onClick={() => setPage(page + 1)}>→</button>
+            <button disabled={page <= 1} onClick={() => setPage(page - 1)}>
+              ←
+            </button>
+            <span>
+              Страница {page} / {Math.ceil(total / 50)}
+            </span>
+            <button
+              disabled={page >= Math.ceil(total / 50)}
+              onClick={() => setPage(page + 1)}
+            >
+              →
+            </button>
           </div>
         </>
       )}
@@ -313,8 +356,8 @@ function ProductsTab({ role }: { role: string }) {
                   ? p.pricing.globalDiscountType === "PERCENT"
                     ? `-${p.pricing.percentOff}%`
                     : p.pricing.globalDiscountType === "FIXED_OVERRIDE"
-                    ? `${p.pricing.starsPriceOverride} ⭐`
-                    : "—"
+                      ? `${p.pricing.starsPriceOverride} ⭐`
+                      : "—"
                   : "—"}
               </td>
             </tr>
@@ -325,7 +368,15 @@ function ProductsTab({ role }: { role: string }) {
   );
 }
 
-function ProductCard({ product, canEdit, onBack }: { product: any; canEdit: boolean; onBack: () => void }) {
+function ProductCard({
+  product,
+  canEdit,
+  onBack,
+}: {
+  product: any;
+  canEdit: boolean;
+  onBack: () => void;
+}) {
   const [reason, setReason] = useState("");
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [showPromoModal, setShowPromoModal] = useState(false);
@@ -348,8 +399,12 @@ function ProductCard({ product, canEdit, onBack }: { product: any; canEdit: bool
     try {
       await adminApi.updatePricing(product.code, {
         ...pricingForm,
-        percentOff: pricingForm.percentOff ? parseInt(pricingForm.percentOff as any) : null,
-        starsPriceOverride: pricingForm.starsPriceOverride ? parseInt(pricingForm.starsPriceOverride as any) : null,
+        percentOff: pricingForm.percentOff
+          ? parseInt(pricingForm.percentOff as any)
+          : null,
+        starsPriceOverride: pricingForm.starsPriceOverride
+          ? parseInt(pricingForm.starsPriceOverride as any)
+          : null,
         reason,
       });
       setShowPricingModal(false);
@@ -366,14 +421,26 @@ function ProductCard({ product, canEdit, onBack }: { product: any; canEdit: bool
     try {
       await adminApi.createPromoCode(product.code, {
         ...promoForm,
-        percentOff: promoForm.percentOff ? parseInt(promoForm.percentOff) : undefined,
-        starsPriceOverride: promoForm.starsPriceOverride ? parseInt(promoForm.starsPriceOverride) : undefined,
-        maxRedemptions: promoForm.maxRedemptions ? parseInt(promoForm.maxRedemptions) : undefined,
+        percentOff: promoForm.percentOff
+          ? parseInt(promoForm.percentOff)
+          : undefined,
+        starsPriceOverride: promoForm.starsPriceOverride
+          ? parseInt(promoForm.starsPriceOverride)
+          : undefined,
+        maxRedemptions: promoForm.maxRedemptions
+          ? parseInt(promoForm.maxRedemptions)
+          : undefined,
         reason,
       });
       setShowPromoModal(false);
       setReason("");
-      setPromoForm({ code: "", discountType: "PERCENT", percentOff: "", starsPriceOverride: "", maxRedemptions: "" });
+      setPromoForm({
+        code: "",
+        discountType: "PERCENT",
+        percentOff: "",
+        starsPriceOverride: "",
+        maxRedemptions: "",
+      });
       onBack();
     } catch (err) {
       alert("Ошибка: " + ((err as Error).message || "Неизвестная ошибка"));
@@ -382,13 +449,23 @@ function ProductCard({ product, canEdit, onBack }: { product: any; canEdit: bool
 
   return (
     <div className="product-card">
-      <button className="back-btn" onClick={onBack}>← Назад</button>
+      <button className="back-btn" onClick={onBack}>
+        ← Назад
+      </button>
       <h2>{product.title}</h2>
       <div className="product-info">
-        <p><strong>Код:</strong> {product.code}</p>
-        <p><strong>Цена:</strong> {product.starsPrice} ⭐</p>
-        <p><strong>Длительность:</strong> {product.durationDays} дней</p>
-        <p><strong>Активен:</strong> {product.active ? "Да" : "Нет"}</p>
+        <p>
+          <strong>Код:</strong> {product.code}
+        </p>
+        <p>
+          <strong>Цена:</strong> {product.starsPrice} ⭐
+        </p>
+        <p>
+          <strong>Длительность:</strong> {product.durationDays} дней
+        </p>
+        <p>
+          <strong>Активен:</strong> {product.active ? "Да" : "Нет"}
+        </p>
       </div>
 
       <h3>Глобальная скидка</h3>
@@ -397,11 +474,15 @@ function ProductCard({ product, canEdit, onBack }: { product: any; canEdit: bool
           ? product.pricing.globalDiscountType === "PERCENT"
             ? `Скидка ${product.pricing.percentOff}%`
             : product.pricing.globalDiscountType === "FIXED_OVERRIDE"
-            ? `Фикс. цена ${product.pricing.starsPriceOverride} ⭐`
-            : "Не задана"
+              ? `Фикс. цена ${product.pricing.starsPriceOverride} ⭐`
+              : "Не задана"
           : "Не активна"}
       </p>
-      {canEdit && <button onClick={() => setShowPricingModal(true)}>Настроить скидку</button>}
+      {canEdit && (
+        <button onClick={() => setShowPricingModal(true)}>
+          Настроить скидку
+        </button>
+      )}
 
       <h3>Промокоды</h3>
       {product.promoCodes?.length > 0 ? (
@@ -421,9 +502,14 @@ function ProductCard({ product, canEdit, onBack }: { product: any; canEdit: bool
                 <td>{promo.code}</td>
                 <td>{promo.discountType}</td>
                 <td>
-                  {promo.discountType === "PERCENT" ? `${promo.percentOff}%` : `${promo.starsPriceOverride} ⭐`}
+                  {promo.discountType === "PERCENT"
+                    ? `${promo.percentOff}%`
+                    : `${promo.starsPriceOverride} ⭐`}
                 </td>
-                <td>{promo.redeemedCount}{promo.maxRedemptions ? ` / ${promo.maxRedemptions}` : ""}</td>
+                <td>
+                  {promo.redeemedCount}
+                  {promo.maxRedemptions ? ` / ${promo.maxRedemptions}` : ""}
+                </td>
                 <td>{promo.enabled ? "✅" : "❌"}</td>
               </tr>
             ))}
@@ -432,7 +518,11 @@ function ProductCard({ product, canEdit, onBack }: { product: any; canEdit: bool
       ) : (
         <p>Нет промокодов</p>
       )}
-      {canEdit && <button onClick={() => setShowPromoModal(true)}>Добавить промокод</button>}
+      {canEdit && (
+        <button onClick={() => setShowPromoModal(true)}>
+          Добавить промокод
+        </button>
+      )}
 
       {showPricingModal && (
         <div className="modal-overlay">
@@ -442,13 +532,20 @@ function ProductCard({ product, canEdit, onBack }: { product: any; canEdit: bool
               <input
                 type="checkbox"
                 checked={pricingForm.enabled}
-                onChange={(e) => setPricingForm({ ...pricingForm, enabled: e.target.checked })}
+                onChange={(e) =>
+                  setPricingForm({ ...pricingForm, enabled: e.target.checked })
+                }
               />
               Скидка активна
             </label>
             <select
               value={pricingForm.globalDiscountType}
-              onChange={(e) => setPricingForm({ ...pricingForm, globalDiscountType: e.target.value })}
+              onChange={(e) =>
+                setPricingForm({
+                  ...pricingForm,
+                  globalDiscountType: e.target.value,
+                })
+              }
             >
               <option value="NONE">Нет скидки</option>
               <option value="PERCENT">Процент</option>
@@ -459,7 +556,9 @@ function ProductCard({ product, canEdit, onBack }: { product: any; canEdit: bool
                 type="number"
                 placeholder="Процент скидки"
                 value={pricingForm.percentOff}
-                onChange={(e) => setPricingForm({ ...pricingForm, percentOff: e.target.value })}
+                onChange={(e) =>
+                  setPricingForm({ ...pricingForm, percentOff: e.target.value })
+                }
               />
             )}
             {pricingForm.globalDiscountType === "FIXED_OVERRIDE" && (
@@ -467,7 +566,12 @@ function ProductCard({ product, canEdit, onBack }: { product: any; canEdit: bool
                 type="number"
                 placeholder="Фикс. цена (Stars)"
                 value={pricingForm.starsPriceOverride}
-                onChange={(e) => setPricingForm({ ...pricingForm, starsPriceOverride: e.target.value })}
+                onChange={(e) =>
+                  setPricingForm({
+                    ...pricingForm,
+                    starsPriceOverride: e.target.value,
+                  })
+                }
               />
             )}
             <textarea
@@ -491,11 +595,18 @@ function ProductCard({ product, canEdit, onBack }: { product: any; canEdit: bool
               type="text"
               placeholder="Код промокода"
               value={promoForm.code}
-              onChange={(e) => setPromoForm({ ...promoForm, code: e.target.value.toUpperCase() })}
+              onChange={(e) =>
+                setPromoForm({
+                  ...promoForm,
+                  code: e.target.value.toUpperCase(),
+                })
+              }
             />
             <select
               value={promoForm.discountType}
-              onChange={(e) => setPromoForm({ ...promoForm, discountType: e.target.value })}
+              onChange={(e) =>
+                setPromoForm({ ...promoForm, discountType: e.target.value })
+              }
             >
               <option value="PERCENT">Процент</option>
               <option value="FIXED_OVERRIDE">Фикс. цена</option>
@@ -505,7 +616,9 @@ function ProductCard({ product, canEdit, onBack }: { product: any; canEdit: bool
                 type="number"
                 placeholder="Процент скидки"
                 value={promoForm.percentOff}
-                onChange={(e) => setPromoForm({ ...promoForm, percentOff: e.target.value })}
+                onChange={(e) =>
+                  setPromoForm({ ...promoForm, percentOff: e.target.value })
+                }
               />
             )}
             {promoForm.discountType === "FIXED_OVERRIDE" && (
@@ -513,14 +626,21 @@ function ProductCard({ product, canEdit, onBack }: { product: any; canEdit: bool
                 type="number"
                 placeholder="Фикс. цена (Stars)"
                 value={promoForm.starsPriceOverride}
-                onChange={(e) => setPromoForm({ ...promoForm, starsPriceOverride: e.target.value })}
+                onChange={(e) =>
+                  setPromoForm({
+                    ...promoForm,
+                    starsPriceOverride: e.target.value,
+                  })
+                }
               />
             )}
             <input
               type="number"
               placeholder="Макс. использований (опционально)"
               value={promoForm.maxRedemptions}
-              onChange={(e) => setPromoForm({ ...promoForm, maxRedemptions: e.target.value })}
+              onChange={(e) =>
+                setPromoForm({ ...promoForm, maxRedemptions: e.target.value })
+              }
             />
             <textarea
               placeholder="Причина (обязательно)"
@@ -530,6 +650,371 @@ function ProductCard({ product, canEdit, onBack }: { product: any; canEdit: bool
             <div className="modal-actions">
               <button onClick={() => setShowPromoModal(false)}>Отмена</button>
               <button onClick={handleCreatePromo}>Создать</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TrackingTab({ role }: { role: string }) {
+  const [links, setLinks] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [selectedLink, setSelectedLink] = useState<any>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    code: "",
+    name: "",
+    description: "",
+    reason: "",
+  });
+
+  const canEdit = role === "OWNER" || role === "ADMIN";
+
+  const loadLinks = useCallback(() => {
+    setLoading(true);
+    adminApi
+      .listTrackingLinks({ page, search: search || undefined })
+      .then((res) => {
+        setLinks(res.items);
+        setTotal(res.total);
+        setLoading(false);
+      });
+  }, [page, search]);
+
+  useEffect(() => {
+    loadLinks();
+  }, [loadLinks]);
+
+  const handleCreate = async () => {
+    if (
+      !createForm.code.trim() ||
+      !createForm.name.trim() ||
+      !createForm.reason.trim()
+    ) {
+      return alert("Заполните все обязательные поля");
+    }
+    try {
+      await adminApi.createTrackingLink(createForm);
+      setShowCreateModal(false);
+      setCreateForm({ code: "", name: "", description: "", reason: "" });
+      loadLinks();
+    } catch (err) {
+      alert("Ошибка: " + ((err as Error).message || "Неизвестная ошибка"));
+    }
+  };
+
+  if (selectedLink) {
+    return (
+      <TrackingLinkCard
+        link={selectedLink}
+        canEdit={canEdit}
+        onBack={() => {
+          setSelectedLink(null);
+          loadLinks();
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="tracking-tab">
+      <div className="search-bar">
+        <input
+          placeholder="Поиск по коду, названию..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && loadLinks()}
+        />
+        <button onClick={loadLinks}>Искать</button>
+        {canEdit && (
+          <button onClick={() => setShowCreateModal(true)}>
+            + Создать ссылку
+          </button>
+        )}
+      </div>
+      {loading ? (
+        <div>Загрузка...</div>
+      ) : (
+        <>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Код</th>
+                <th>Название</th>
+                <th>Переходов</th>
+                <th>Активна</th>
+                <th>Создана</th>
+                <th>Ссылка</th>
+              </tr>
+            </thead>
+            <tbody>
+              {links.map((l) => (
+                <tr
+                  key={l.id}
+                  onClick={() => setSelectedLink(l)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <td>{l.code}</td>
+                  <td>{l.name}</td>
+                  <td>{l.clickCount}</td>
+                  <td>{l.enabled ? "✅" : "❌"}</td>
+                  <td>{new Date(l.createdAt).toLocaleDateString()}</td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(
+                          `https://t.me/POPOLAM_bot?start=${l.code}`
+                        );
+                        alert("Ссылка скопирована!");
+                      }}
+                    >
+                      📋
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="pagination">
+            <button disabled={page <= 1} onClick={() => setPage(page - 1)}>
+              ←
+            </button>
+            <span>
+              Страница {page} / {Math.ceil(total / 50)}
+            </span>
+            <button
+              disabled={page >= Math.ceil(total / 50)}
+              onClick={() => setPage(page + 1)}
+            >
+              →
+            </button>
+          </div>
+        </>
+      )}
+
+      {showCreateModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h3>Новая tracking-ссылка</h3>
+            <input
+              type="text"
+              placeholder="Код (латиница, цифры, -, _)"
+              value={createForm.code}
+              onChange={(e) =>
+                setCreateForm({
+                  ...createForm,
+                  code: e.target.value.replace(/[^a-zA-Z0-9_-]/g, ""),
+                })
+              }
+            />
+            <input
+              type="text"
+              placeholder="Название"
+              value={createForm.name}
+              onChange={(e) =>
+                setCreateForm({ ...createForm, name: e.target.value })
+              }
+            />
+            <textarea
+              placeholder="Описание (опционально)"
+              value={createForm.description}
+              onChange={(e) =>
+                setCreateForm({ ...createForm, description: e.target.value })
+              }
+            />
+            <textarea
+              placeholder="Причина создания (обязательно)"
+              value={createForm.reason}
+              onChange={(e) =>
+                setCreateForm({ ...createForm, reason: e.target.value })
+              }
+            />
+            <div className="modal-actions">
+              <button onClick={() => setShowCreateModal(false)}>Отмена</button>
+              <button onClick={handleCreate}>Создать</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TrackingLinkCard({
+  link,
+  canEdit,
+  onBack,
+}: {
+  link: any;
+  canEdit: boolean;
+  onBack: () => void;
+}) {
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: link.name,
+    description: link.description || "",
+    enabled: link.enabled,
+    reason: "",
+  });
+
+  useEffect(() => {
+    adminApi.getTrackingLinkStats(link.id).then((res) => {
+      setStats(res);
+      setLoading(false);
+    });
+  }, [link.id]);
+
+  const handleUpdate = async () => {
+    if (!editForm.reason.trim()) return alert("Укажите причину");
+    try {
+      await adminApi.updateTrackingLink(link.id, editForm);
+      setShowEditModal(false);
+      onBack();
+    } catch (err) {
+      alert("Ошибка: " + ((err as Error).message || "Неизвестная ошибка"));
+    }
+  };
+
+  const handleDelete = async () => {
+    const reason = prompt("Причина удаления:");
+    if (!reason) return;
+    try {
+      await adminApi.deleteTrackingLink(link.id, reason);
+      onBack();
+    } catch (err) {
+      alert("Ошибка: " + ((err as Error).message || "Неизвестная ошибка"));
+    }
+  };
+
+  const botLink = `https://t.me/POPOLAM_bot?start=${link.code}`;
+
+  return (
+    <div className="tracking-card">
+      <button className="back-btn" onClick={onBack}>
+        ← Назад
+      </button>
+      <h2>{link.name}</h2>
+      <div className="tracking-info">
+        <p>
+          <strong>Код:</strong> {link.code}
+        </p>
+        <p>
+          <strong>Ссылка:</strong>{" "}
+          <a href={botLink} target="_blank" rel="noopener noreferrer">
+            {botLink}
+          </a>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(botLink);
+              alert("Скопировано!");
+            }}
+            style={{ marginLeft: 8 }}
+          >
+            📋
+          </button>
+        </p>
+        <p>
+          <strong>Описание:</strong> {link.description || "—"}
+        </p>
+        <p>
+          <strong>Активна:</strong> {link.enabled ? "Да" : "Нет"}
+        </p>
+        <p>
+          <strong>Создана:</strong> {new Date(link.createdAt).toLocaleString()}
+        </p>
+      </div>
+
+      <h3>Статистика</h3>
+      {loading ? (
+        <div>Загрузка...</div>
+      ) : (
+        <div className="tracking-stats">
+          <p>
+            <strong>Всего переходов:</strong> {stats?.totalClicks || 0}
+          </p>
+          <p>
+            <strong>Уникальных пользователей:</strong>{" "}
+            {stats?.uniqueUsersCount || 0}
+          </p>
+          {stats?.recentClicks?.length > 0 && (
+            <>
+              <h4>Последние переходы</h4>
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Дата</th>
+                    <th>Telegram ID</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.recentClicks.slice(0, 20).map((c: any) => (
+                    <tr key={c.id}>
+                      <td>{new Date(c.createdAt).toLocaleString()}</td>
+                      <td>{c.telegramUserId || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </div>
+      )}
+
+      {canEdit && (
+        <div className="tracking-actions">
+          <button onClick={() => setShowEditModal(true)}>Редактировать</button>
+          <button onClick={handleDelete} style={{ background: "#dc3545" }}>
+            Удалить
+          </button>
+        </div>
+      )}
+
+      {showEditModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h3>Редактирование ссылки</h3>
+            <input
+              type="text"
+              placeholder="Название"
+              value={editForm.name}
+              onChange={(e) =>
+                setEditForm({ ...editForm, name: e.target.value })
+              }
+            />
+            <textarea
+              placeholder="Описание"
+              value={editForm.description}
+              onChange={(e) =>
+                setEditForm({ ...editForm, description: e.target.value })
+              }
+            />
+            <label>
+              <input
+                type="checkbox"
+                checked={editForm.enabled}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, enabled: e.target.checked })
+                }
+              />
+              Активна
+            </label>
+            <textarea
+              placeholder="Причина изменения (обязательно)"
+              value={editForm.reason}
+              onChange={(e) =>
+                setEditForm({ ...editForm, reason: e.target.value })
+              }
+            />
+            <div className="modal-actions">
+              <button onClick={() => setShowEditModal(false)}>Отмена</button>
+              <button onClick={handleUpdate}>Сохранить</button>
             </div>
           </div>
         </div>
@@ -582,15 +1067,27 @@ function LogsTab() {
                   <td>{log.action}</td>
                   <td>{log.targetType}</td>
                   <td>{log.targetId?.slice(0, 8) || "—"}</td>
-                  <td title={log.reason}>{log.reason.slice(0, 30)}{log.reason.length > 30 ? "..." : ""}</td>
+                  <td title={log.reason}>
+                    {log.reason.slice(0, 30)}
+                    {log.reason.length > 30 ? "..." : ""}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
           <div className="pagination">
-            <button disabled={page <= 1} onClick={() => setPage(page - 1)}>←</button>
-            <span>Страница {page} / {Math.ceil(total / 50)}</span>
-            <button disabled={page >= Math.ceil(total / 50)} onClick={() => setPage(page + 1)}>→</button>
+            <button disabled={page <= 1} onClick={() => setPage(page - 1)}>
+              ←
+            </button>
+            <span>
+              Страница {page} / {Math.ceil(total / 50)}
+            </span>
+            <button
+              disabled={page >= Math.ceil(total / 50)}
+              onClick={() => setPage(page + 1)}
+            >
+              →
+            </button>
           </div>
         </>
       )}
@@ -599,4 +1096,3 @@ function LogsTab() {
 }
 
 export default AdminApp;
-

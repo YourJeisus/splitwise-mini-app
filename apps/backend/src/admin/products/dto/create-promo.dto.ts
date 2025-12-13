@@ -40,3 +40,4 @@ export class CreatePromoDto {
   reason!: string;
 }
 
+

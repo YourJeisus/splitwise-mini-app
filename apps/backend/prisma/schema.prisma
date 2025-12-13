@@ -365,3 +365,32 @@ model AdminAuditLog {
   @@index([createdAt])
 }
 
+// Tracking links для отслеживания переходов по реферальным ссылкам бота
+model TrackingLink {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  description String?
+  clickCount  Int      @default(0)
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  clicks TrackingLinkClick[]
+
+  @@index([code])
+  @@index([createdAt])
+}
+
+model TrackingLinkClick {
+  id             String   @id @default(uuid())
+  trackingLinkId String
+  telegramUserId String?
+  createdAt      DateTime @default(now())
+
+  trackingLink TrackingLink @relation(fields: [trackingLinkId], references: [id], onDelete: Cascade)
+
+  @@index([trackingLinkId])
+  @@index([createdAt])
+}
+

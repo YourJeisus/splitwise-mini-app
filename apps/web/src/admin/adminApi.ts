@@ -1,7 +1,7 @@
 const getBaseUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL as string | undefined;
   const isDev = import.meta.env.DEV;
-  const rawUrl = isDev && envUrl ? envUrl : (envUrl || window.location.origin);
+  const rawUrl = isDev && envUrl ? envUrl : envUrl || window.location.origin;
   return rawUrl.endsWith("/") ? rawUrl.slice(0, -1) : rawUrl;
 };
 
@@ -23,7 +23,10 @@ export const getAccessToken = () => {
   return accessToken;
 };
 
-const request = async <T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> => {
+const request = async <T>(
+  path: string,
+  options: { method?: string; body?: unknown } = {}
+): Promise<T> => {
   const token = getAccessToken();
   const res = await fetch(`${getBaseUrl()}${path}`, {
     method: options.method ?? "GET",
@@ -54,53 +57,113 @@ const request = async <T>(path: string, options: { method?: string; body?: unkno
 export const adminApi = {
   // Auth
   login: (email: string, password: string) =>
-    request<{ accessToken: string; admin: { id: string; email: string; role: string } }>("/admin/auth/login", {
+    request<{
+      accessToken: string;
+      admin: { id: string; email: string; role: string };
+    }>("/admin/auth/login", {
       method: "POST",
       body: { email, password },
     }),
-  getMe: () => request<{ id: string; email: string; role: string }>("/admin/auth/me"),
+  getMe: () =>
+    request<{ id: string; email: string; role: string }>("/admin/auth/me"),
 
   // Dashboard
-  getKPI: (period: string) => request<any>(`/admin/dashboard/kpi?period=${period}`),
+  getKPI: (period: string) =>
+    request<any>(`/admin/dashboard/kpi?period=${period}`),
 
   // Users
-  listUsers: (params: { page?: number; search?: string; godMode?: boolean }) => {
+  listUsers: (params: {
+    page?: number;
+    search?: string;
+    godMode?: boolean;
+  }) => {
     const qs = new URLSearchParams();
     if (params.page) qs.set("page", String(params.page));
     if (params.search) qs.set("search", params.search);
     if (params.godMode !== undefined) qs.set("godMode", String(params.godMode));
-    return request<{ items: any[]; total: number; page: number; limit: number }>(`/admin/users?${qs}`);
+    return request<{
+      items: any[];
+      total: number;
+      page: number;
+      limit: number;
+    }>(`/admin/users?${qs}`);
   },
   getUser: (id: string) => request<any>(`/admin/users/${id}`),
   toggleGodMode: (id: string, enabled: boolean, reason: string) =>
-    request<any>(`/admin/users/${id}/god-mode`, { method: "PATCH", body: { enabled, reason } }),
-  grantEntitlement: (userId: string, data: { groupId: string; productCode: string; durationDays: number; reason: string }) =>
-    request<any>(`/admin/users/${userId}/entitlements`, { method: "POST", body: data }),
+    request<any>(`/admin/users/${id}/god-mode`, {
+      method: "PATCH",
+      body: { enabled, reason },
+    }),
+  grantEntitlement: (
+    userId: string,
+    data: {
+      groupId: string;
+      productCode: string;
+      durationDays: number;
+      reason: string;
+    }
+  ) =>
+    request<any>(`/admin/users/${userId}/entitlements`, {
+      method: "POST",
+      body: data,
+    }),
   revokeEntitlement: (entitlementId: string, reason: string) =>
-    request<any>(`/admin/users/entitlements/${entitlementId}/revoke`, { method: "PATCH", body: { reason } }),
-  extendEntitlement: (entitlementId: string, extraDays: number, reason: string) =>
-    request<any>(`/admin/users/entitlements/${entitlementId}/extend`, { method: "PATCH", body: { extraDays, reason } }),
+    request<any>(`/admin/users/entitlements/${entitlementId}/revoke`, {
+      method: "PATCH",
+      body: { reason },
+    }),
+  extendEntitlement: (
+    entitlementId: string,
+    extraDays: number,
+    reason: string
+  ) =>
+    request<any>(`/admin/users/entitlements/${entitlementId}/extend`, {
+      method: "PATCH",
+      body: { extraDays, reason },
+    }),
 
   // Sales
-  listPurchases: (params: { page?: number; status?: string; from?: string; to?: string }) => {
+  listPurchases: (params: {
+    page?: number;
+    status?: string;
+    from?: string;
+    to?: string;
+  }) => {
     const qs = new URLSearchParams();
     if (params.page) qs.set("page", String(params.page));
     if (params.status) qs.set("status", params.status);
     if (params.from) qs.set("from", params.from);
     if (params.to) qs.set("to", params.to);
-    return request<{ items: any[]; total: number; page: number; limit: number }>(`/admin/sales?${qs}`);
+    return request<{
+      items: any[];
+      total: number;
+      page: number;
+      limit: number;
+    }>(`/admin/sales?${qs}`);
   },
   getPurchase: (id: string) => request<any>(`/admin/sales/${id}`),
   markReviewed: (id: string, note: string) =>
-    request<any>(`/admin/sales/${id}/reviewed`, { method: "PATCH", body: { note } }),
+    request<any>(`/admin/sales/${id}/reviewed`, {
+      method: "PATCH",
+      body: { note },
+    }),
 
   // Groups
-  listGroups: (params: { page?: number; search?: string; closed?: boolean }) => {
+  listGroups: (params: {
+    page?: number;
+    search?: string;
+    closed?: boolean;
+  }) => {
     const qs = new URLSearchParams();
     if (params.page) qs.set("page", String(params.page));
     if (params.search) qs.set("search", params.search);
     if (params.closed !== undefined) qs.set("closed", String(params.closed));
-    return request<{ items: any[]; total: number; page: number; limit: number }>(`/admin/groups?${qs}`);
+    return request<{
+      items: any[];
+      total: number;
+      page: number;
+      limit: number;
+    }>(`/admin/groups?${qs}`);
   },
   getGroup: (id: string) => request<any>(`/admin/groups/${id}`),
 
@@ -110,20 +173,82 @@ export const adminApi = {
   updateProduct: (code: string, data: any) =>
     request<any>(`/admin/products/${code}`, { method: "PATCH", body: data }),
   updatePricing: (code: string, data: any) =>
-    request<any>(`/admin/products/${code}/pricing`, { method: "PATCH", body: data }),
+    request<any>(`/admin/products/${code}/pricing`, {
+      method: "PATCH",
+      body: data,
+    }),
   createPromoCode: (productCode: string, data: any) =>
-    request<any>(`/admin/products/${productCode}/promo-codes`, { method: "POST", body: data }),
+    request<any>(`/admin/products/${productCode}/promo-codes`, {
+      method: "POST",
+      body: data,
+    }),
   updatePromoCode: (id: string, data: any) =>
     request<any>(`/admin/promo-codes/${id}`, { method: "PATCH", body: data }),
   deletePromoCode: (id: string, reason: string) =>
-    request<any>(`/admin/promo-codes/${id}`, { method: "DELETE", body: { reason } }),
+    request<any>(`/admin/promo-codes/${id}`, {
+      method: "DELETE",
+      body: { reason },
+    }),
 
   // Logs
   listLogs: (params: { page?: number; targetType?: string }) => {
     const qs = new URLSearchParams();
     if (params.page) qs.set("page", String(params.page));
     if (params.targetType) qs.set("targetType", params.targetType);
-    return request<{ items: any[]; total: number; page: number; limit: number }>(`/admin/logs?${qs}`);
+    return request<{
+      items: any[];
+      total: number;
+      page: number;
+      limit: number;
+    }>(`/admin/logs?${qs}`);
   },
-};
 
+  // Tracking Links
+  listTrackingLinks: (params: {
+    page?: number;
+    search?: string;
+    enabled?: boolean;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params.page) qs.set("page", String(params.page));
+    if (params.search) qs.set("search", params.search);
+    if (params.enabled !== undefined) qs.set("enabled", String(params.enabled));
+    return request<{
+      items: any[];
+      total: number;
+      page: number;
+      limit: number;
+    }>(`/admin/tracking?${qs}`);
+  },
+  getTrackingLink: (id: string) => request<any>(`/admin/tracking/${id}`),
+  getTrackingLinkStats: (
+    id: string,
+    params: { from?: string; to?: string } = {}
+  ) => {
+    const qs = new URLSearchParams();
+    if (params.from) qs.set("from", params.from);
+    if (params.to) qs.set("to", params.to);
+    return request<any>(`/admin/tracking/${id}/stats?${qs}`);
+  },
+  createTrackingLink: (data: {
+    code: string;
+    name: string;
+    description?: string;
+    enabled?: boolean;
+    reason: string;
+  }) => request<any>("/admin/tracking", { method: "POST", body: data }),
+  updateTrackingLink: (
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      enabled?: boolean;
+      reason: string;
+    }
+  ) => request<any>(`/admin/tracking/${id}`, { method: "PATCH", body: data }),
+  deleteTrackingLink: (id: string, reason: string) =>
+    request<any>(`/admin/tracking/${id}`, {
+      method: "DELETE",
+      body: { reason },
+    }),
+};

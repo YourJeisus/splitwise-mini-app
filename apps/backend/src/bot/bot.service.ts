@@ -7,6 +7,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { Telegraf, Markup } from "telegraf";
 import { MonetizationService } from "../monetization/monetization.service";
+import { AdminTrackingService } from "../admin/tracking/admin-tracking.service";
 
 @Injectable()
 export class BotService implements OnModuleInit, OnModuleDestroy {
@@ -19,7 +20,8 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private configService: ConfigService,
-    private monetizationService: MonetizationService
+    private monetizationService: MonetizationService,
+    private trackingService: AdminTrackingService
   ) {
     const isDev = this.configService.get<string>("NODE_ENV") === "development";
     this.isProd = this.configService.get<string>("NODE_ENV") === "production";
@@ -38,10 +40,11 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       "https://popolam.up.railway.app";
 
     const explicitWebhookUrl = this.configService.get<string>("WEBHOOK_URL");
-    const railwayDomain = this.configService.get<string>("RAILWAY_PUBLIC_DOMAIN");
+    const railwayDomain = this.configService.get<string>(
+      "RAILWAY_PUBLIC_DOMAIN"
+    );
     this.webhookUrl =
-      explicitWebhookUrl ||
-      (railwayDomain ? `https://${railwayDomain}` : null);
+      explicitWebhookUrl || (railwayDomain ? `https://${railwayDomain}` : null);
   }
 
   async onModuleInit() {
@@ -54,10 +57,7 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         await this.bot.telegram.setWebhook(url);
         this.logger.log(`Bot webhook enabled: ${url}`);
       } catch (error) {
-        this.logger.error(
-          "Failed to set webhook",
-          (error as Error).message
-        );
+        this.logger.error("Failed to set webhook", (error as Error).message);
       }
       return;
     }
@@ -88,8 +88,21 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
   private setupHandlers() {
     if (!this.bot) return;
 
-    this.bot.start((ctx) => {
+    this.bot.start(async (ctx) => {
       const firstName = ctx.from?.first_name || "друг";
+      const telegramUserId = ctx.from?.id ? String(ctx.from.id) : undefined;
+
+      // Обработка tracking параметра из start
+      const startPayload =
+        (ctx as any).startPayload || (ctx.message as any)?.text?.split(" ")[1];
+      if (startPayload) {
+        try {
+          await this.trackingService.recordClick(startPayload, telegramUserId);
+        } catch (e) {
+          // ignore tracking errors
+        }
+      }
+
       return ctx.reply(
         `👋 Привет, ${firstName}!\n\nДобро пожаловать в ПОПОЛАМ — приложение, которое считает всё за вас и сохраняет дружбу.\n\nНажми кнопку ниже, чтобы открыть приложение:`,
         Markup.inlineKeyboard([
