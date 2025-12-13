@@ -768,7 +768,7 @@ function TrackingTab({ role }: { role: string }) {
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(
-                          `https://t.me/POPOLAM_bot?start=${l.code}`
+                          `https://t.me/PopolamAppBot?start=${l.code}`
                         );
                         alert("Ссылка скопирована!");
                       }}
@@ -893,7 +893,7 @@ function TrackingLinkCard({
     }
   };
 
-  const botLink = `https://t.me/POPOLAM_bot?start=${link.code}`;
+  const botLink = `https://t.me/PopolamAppBot?start=${link.code}`;
 
   return (
     <div className="tracking-card">
