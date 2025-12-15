@@ -514,18 +514,6 @@ function MainApp() {
     setTripPassStatus(tpStatus);
     setTripPassSplitCost(false);
     setSelectedParticipants(Object.keys(balance.balances));
-
-    try {
-      if (!tpStatus.active && balance.expensesCount > 0) {
-        const key = `tp_soft_upsell_shown_${groupId}`;
-        if (!localStorage.getItem(key)) {
-          localStorage.setItem(key, "1");
-          setTripPassUpsell({ reason: "soft" });
-        }
-      }
-    } catch {
-      // ignore
-    }
   };
 
   const handleCopyInviteLink = () => {
@@ -577,8 +565,10 @@ function MainApp() {
         setGroupBalance(balance);
         setTripPassUpsell(null);
         setTripPassBuying(false);
-        setLastPurchaseId(purchaseId);
-        setShowTripPassSplitModal(true);
+        if (status.active) {
+          setLastPurchaseId(purchaseId);
+          setShowTripPassSplitModal(true);
+        }
         if (openSummaryAfter && status.active) {
           const summary = await api.getTripSummary(selectedGroup);
           setTripSummary(summary);
@@ -596,7 +586,8 @@ function MainApp() {
       const wa = window.Telegram?.WebApp as any;
       if (wa?.openInvoice && invoiceLink) {
         setTripPassBuying(false);
-        wa.openInvoice(invoiceLink, async () => {
+        wa.openInvoice(invoiceLink, async (status: string) => {
+          if (status !== "paid") return;
           try {
             await afterPurchase();
           } finally {
