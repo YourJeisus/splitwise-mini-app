@@ -39,3 +39,5 @@ CREATE INDEX "TrackingLinkClick_createdAt_idx" ON "TrackingLinkClick"("createdAt
 
 -- AddForeignKey
 ALTER TABLE "TrackingLinkClick" ADD CONSTRAINT "TrackingLinkClick_trackingLinkId_fkey" FOREIGN KEY ("trackingLinkId") REFERENCES "TrackingLink"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+

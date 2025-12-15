@@ -1282,7 +1282,9 @@ function MainApp() {
                       <div className="group-item-meta">
                         {getCurrencySymbol(g.currency)}
                         {g.hasTripPass && !g.closedAt && (
-                          <span className="group-trip-pass-badge">Trip Pass</span>
+                          <span className="group-trip-pass-badge">
+                            Trip Pass
+                          </span>
                         )}
                       </div>
                     </div>
@@ -2635,8 +2637,8 @@ function MainApp() {
                 <>
                   Купить Trip Pass (30 дней)
                   <span className="trip-pass-price">
-                    <span className="old-price">100⭐</span>
-                    <span className="new-price">1⭐</span>
+                    <span className="old-price">200⭐</span>
+                    <span className="new-price">100⭐</span>
                   </span>
                 </>
               )}
