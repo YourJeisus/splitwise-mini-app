@@ -1291,6 +1291,7 @@ textarea {
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  padding-bottom: var(--safe-area-bottom);
   z-index: 1000;
   animation: fadeIn 0.2s ease;
 }
@@ -1308,10 +1309,11 @@ textarea {
   background: var(--bg-card);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   padding: 24px;
-  padding-bottom: calc(24px + var(--safe-area-bottom));
+  padding-top: calc(24px + var(--safe-area-top));
+  padding-bottom: 24px;
   width: 100%;
   max-width: 480px;
-  max-height: calc(85vh - var(--safe-area-top));
+  max-height: 85vh;
   overflow-y: auto;
   overflow-x: hidden;
   animation: slideUp 0.3s ease;

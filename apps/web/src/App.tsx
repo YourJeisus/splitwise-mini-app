@@ -347,12 +347,20 @@ function MainApp() {
         const safeArea = wa.safeAreaInset || {};
         const contentSafeArea = wa.contentSafeAreaInset || {};
         document.documentElement.style.setProperty(
-          "--tg-safe-area-top",
+          "--safe-area-top",
           `${safeArea.top || 0}px`
         );
         document.documentElement.style.setProperty(
-          "--tg-safe-area-bottom",
+          "--safe-area-bottom",
           `${safeArea.bottom || 0}px`
+        );
+        document.documentElement.style.setProperty(
+          "--safe-area-left",
+          `${safeArea.left || 0}px`
+        );
+        document.documentElement.style.setProperty(
+          "--safe-area-right",
+          `${safeArea.right || 0}px`
         );
         document.documentElement.style.setProperty(
           "--tg-content-safe-area-top",
