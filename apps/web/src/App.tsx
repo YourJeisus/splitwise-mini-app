@@ -392,6 +392,16 @@ function MainApp() {
   useEffect(() => {
     if (!api.hasAuth()) return;
     void bootstrap();
+    
+    // Reset onboarding via URL parameter for testing
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('reset_onboarding') === '1') {
+      Object.keys(localStorage)
+        .filter(key => key.startsWith('onboarding:v1'))
+        .forEach(key => localStorage.removeItem(key));
+      window.history.replaceState({}, '', window.location.pathname);
+      window.location.reload();
+    }
   }, [api]);
 
   // Смена сообщений при сканировании чека
@@ -1153,6 +1163,30 @@ function MainApp() {
     <OnboardingProvider context={onboardingContext}>
       <div className="app">
         <CoachmarkOverlay />
+      {/* Dev Tools */}
+      {import.meta.env.DEV && (
+        <div className="dev-panel">
+          <details>
+            <summary style={{ cursor: 'pointer', padding: '8px', background: '#333', color: '#fff', borderRadius: '4px', marginBottom: '8px' }}>
+              🛠️ Dev Tools
+            </summary>
+            <div style={{ padding: '12px', background: '#2a2a2a', borderRadius: '4px', marginBottom: '8px' }}>
+              <button
+                onClick={() => {
+                  Object.keys(localStorage)
+                    .filter(key => key.startsWith('onboarding:v1'))
+                    .forEach(key => localStorage.removeItem(key));
+                  alert('Онбординг сброшен. Перезагрузите страницу.');
+                }}
+                style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', width: '100%' }}
+              >
+                🔄 Сбросить онбординг
+              </button>
+            </div>
+          </details>
+        </div>
+      )}
+
       {showCopyToast && (
         <div className="copy-toast">
           Ссылка на группу скопирована
