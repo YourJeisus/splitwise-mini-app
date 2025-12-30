@@ -1294,6 +1294,8 @@ textarea {
   padding-bottom: var(--safe-area-bottom);
   z-index: 1000;
   animation: fadeIn 0.2s ease;
+  overflow: hidden;
+  touch-action: none;
 }
 
 @keyframes fadeIn {
@@ -1316,13 +1318,17 @@ textarea {
   max-height: 85vh;
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain;
   animation: slideUp 0.3s ease;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal::-webkit-scrollbar {
-  display: none; /* Chrome/Safari */
+  display: none; /* Chrome/Safari/Edge */
+  width: 0;
+  height: 0;
 }
 
 @keyframes slideUp {
