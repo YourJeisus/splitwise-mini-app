@@ -1975,23 +1975,36 @@ input::placeholder {
 }
 
 /* ===== TRIP SUMMARY SCREEN ===== */
+.trip-summary-overlay {
+  padding-bottom: 0;
+  background: #1a1a2e;
+}
+
 .trip-summary-screen {
   background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   width: 100%;
   max-width: 480px;
-  max-height: calc(100vh - var(--safe-area-top));
+  max-height: 100vh;
+  height: 100vh;
   overflow-y: auto;
   animation: slideUp 0.3s ease;
+  padding-top: var(--safe-area-top);
   padding-bottom: calc(20px + var(--safe-area-bottom));
   margin-bottom: 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.trip-summary-screen::-webkit-scrollbar {
+  display: none;
 }
 
 .trip-summary-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: calc(20px + var(--safe-area-top)) 24px 16px;
+  padding: 24px 24px 16px;
   position: sticky;
   top: 0;
   background: linear-gradient(180deg, #1a1a2e 0%, rgba(26, 26, 46, 0.95) 100%);

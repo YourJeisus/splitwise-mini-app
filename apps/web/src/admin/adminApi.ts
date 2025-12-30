@@ -260,6 +260,63 @@ export const adminApi = {
       method: "DELETE",
       body: { reason },
     }),
+
+  // Support
+  listTickets: (params: {
+    status?: string;
+    assigned?: string;
+    search?: string;
+    page?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set("status", params.status);
+    if (params.assigned) qs.set("assigned", params.assigned);
+    if (params.search) qs.set("search", params.search);
+    if (params.page) qs.set("page", String(params.page));
+    return request<{
+      items: any[];
+      total: number;
+      page: number;
+      limit: number;
+    }>(`/admin/support/tickets?${qs}`);
+  },
+  getTicket: (id: string) => request<any>(`/admin/support/tickets/${id}`),
+  getTicketMessages: (id: string) =>
+    request<any[]>(`/admin/support/tickets/${id}/messages`),
+  replyToTicket: (id: string, text: string) =>
+    request<any>(`/admin/support/tickets/${id}/messages`, {
+      method: "POST",
+      body: { text },
+    }),
+  assignTicket: (id: string, adminId: string | null) =>
+    request<any>(`/admin/support/tickets/${id}/assign`, {
+      method: "PATCH",
+      body: { adminId },
+    }),
+  setTicketStatus: (id: string, status: string) =>
+    request<any>(`/admin/support/tickets/${id}/status`, {
+      method: "PATCH",
+      body: { status },
+    }),
+  getSupportNotifications: (unread?: boolean) =>
+    request<any[]>(
+      `/admin/support/notifications${unread ? "?unread=true" : ""}`
+    ),
+  markNotificationsRead: (payload: { ids?: string[]; ticketId?: string }) =>
+    request<any>("/admin/support/notifications/mark-read", {
+      method: "POST",
+      body: payload,
+    }),
+  listSupportAdmins: () => request<any[]>("/admin/support/admins"),
+  generateAdminLinkToken: (adminId: string) =>
+    request<any>(`/admin/support/admins/${adminId}/link-token`, {
+      method: "POST",
+    }),
+  toggleAdminSupportNotifications: (adminId: string, enabled: boolean) =>
+    request<any>(`/admin/support/admins/${adminId}/notifications`, {
+      method: "PATCH",
+      body: { enabled },
+    }),
 };
 
 

@@ -4536,7 +4536,7 @@ function MainApp() {
 
           return (
             <div
-              className="modal-overlay"
+              className="modal-overlay trip-summary-overlay"
               onClick={() => setShowTripSummary(false)}
             >
               <div

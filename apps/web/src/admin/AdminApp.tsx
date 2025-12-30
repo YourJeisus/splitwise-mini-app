@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { adminApi, getAccessToken, setAccessToken } from "./adminApi";
 import { DashboardTab } from "./tabs/DashboardTab";
 import { UsersTab } from "./tabs/UsersTab";
+import { SupportTab } from "./tabs/SupportTab";
+import { SupportAdminsTab } from "./tabs/SupportAdminsTab";
 import "./AdminApp.css";
 
 type Tab =
@@ -11,15 +13,18 @@ type Tab =
   | "sales"
   | "products"
   | "tracking"
+  | "support"
+  | "support-admins"
   | "logs";
 
 export function AdminApp() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [admin, setAdmin] = useState<{ email: string; role: string } | null>(
+  const [admin, setAdmin] = useState<{ id: string; email: string; role: string } | null>(
     null
   );
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+  const [unreadNotifications, setUnreadNotifications] = useState<any[]>([]);
   const [loginError, setLoginError] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,6 +46,18 @@ export function AdminApp() {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const poll = () => {
+      adminApi.getSupportNotifications(true).then((res) => {
+        setUnreadNotifications(res);
+      });
+    };
+    poll();
+    const interval = setInterval(poll, 10000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,6 +130,8 @@ export function AdminApp() {
             "sales",
             "products",
             "tracking",
+            "support",
+            "support-admins",
             "logs",
           ] as Tab[]
         ).map((tab) => (
@@ -127,6 +146,15 @@ export function AdminApp() {
             {tab === "sales" && "Продажи"}
             {tab === "products" && "Продукты"}
             {tab === "tracking" && "Ссылки"}
+            {tab === "support" && (
+              <>
+                Поддержка
+                {unreadNotifications.length > 0 && (
+                  <span className="badge">{unreadNotifications.length}</span>
+                )}
+              </>
+            )}
+            {tab === "support-admins" && "Саппорт Админы"}
             {tab === "logs" && "Логи"}
           </button>
         ))}
@@ -138,6 +166,19 @@ export function AdminApp() {
         {activeTab === "sales" && <SalesTab role={admin?.role || ""} />}
         {activeTab === "products" && <ProductsTab role={admin?.role || ""} />}
         {activeTab === "tracking" && <TrackingTab role={admin?.role || ""} />}
+        {activeTab === "support" && (
+          <SupportTab
+            currentAdminId={admin?.id || ""}
+            onMessagesRead={(ticketId) => {
+              adminApi.markNotificationsRead({ ticketId }).then(() => {
+                setUnreadNotifications((prev) =>
+                  prev.filter((n) => n.data.ticketId !== ticketId)
+                );
+              });
+            }}
+          />
+        )}
+        {activeTab === "support-admins" && <SupportAdminsTab />}
         {activeTab === "logs" && <LogsTab />}
       </main>
     </div>
