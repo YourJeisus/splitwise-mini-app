@@ -23,5 +23,15 @@ export class UsersController {
   addFriend(@AuthUser() user: any, @Body() dto: AddFriendDto) {
     return this.usersService.addFriend(user.id, dto.telegramId);
   }
+
+  @Get('admin-grant-banner')
+  getAdminGrantBanner(@AuthUser() user: any) {
+    return this.usersService.getAdminGrantBanner(user.id);
+  }
+
+  @Post('admin-grant-banner/dismiss')
+  dismissAdminGrantBanner(@AuthUser() user: any) {
+    return this.usersService.dismissAdminGrantBanner(user.id);
+  }
 }
 

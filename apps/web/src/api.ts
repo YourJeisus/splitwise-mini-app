@@ -287,7 +287,12 @@ export const createApiClient = (initData: string) => {
       }
       throw new Error(extracted || text || res.statusText);
     }
-    return res.json() as Promise<T>;
+    
+    const text = await res.text();
+    if (!text) {
+      return null as T;
+    }
+    return JSON.parse(text) as T;
   };
 
   return {
@@ -521,6 +526,15 @@ export const createApiClient = (initData: string) => {
 
     finalizeReceipt: (receiptId: string) =>
       request<Receipt>(`/expenses/receipt/${receiptId}/finalize`, {
+        method: "POST",
+      }),
+
+    getAdminGrantBanner: () =>
+      request<{ entitlementId: string; durationDays: number } | null>(
+        "/users/admin-grant-banner"
+      ),
+    dismissAdminGrantBanner: () =>
+      request<{ success: boolean }>("/users/admin-grant-banner/dismiss", {
         method: "POST",
       }),
   };

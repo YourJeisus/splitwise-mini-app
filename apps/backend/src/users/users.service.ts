@@ -47,5 +47,98 @@ export class UsersService {
 
     return friend;
   }
+
+  async getAdminGrantBanner(userId: string) {
+    const now = new Date();
+    
+    // Найти все активные группы пользователя с Trip Pass от админа
+    const groupMember = await this.prisma.groupMember.findFirst({
+      where: {
+        userId,
+        isActive: true,
+        group: {
+          entitlements: {
+            some: {
+              productCode: 'TRIP_PASS_30D',
+              endsAt: { gt: now },
+              showAdminGrantBanner: true,
+              adminGrantBannerShown: false,
+            }
+          }
+        }
+      },
+      include: {
+        group: {
+          include: {
+            entitlements: {
+              where: {
+                productCode: 'TRIP_PASS_30D',
+                endsAt: { gt: now },
+                showAdminGrantBanner: true,
+                adminGrantBannerShown: false,
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!groupMember || !groupMember.group.entitlements[0]) {
+      return null;
+    }
+
+    const entitlement = groupMember.group.entitlements[0];
+    const durationDays = Math.ceil((entitlement.endsAt.getTime() - entitlement.startsAt.getTime()) / (1000 * 60 * 60 * 24));
+
+    return {
+      entitlementId: entitlement.id,
+      durationDays,
+    };
+  }
+
+  async dismissAdminGrantBanner(userId: string) {
+    const now = new Date();
+    
+    // Найти entitlement для закрытия баннера
+    const groupMember = await this.prisma.groupMember.findFirst({
+      where: {
+        userId,
+        isActive: true,
+        group: {
+          entitlements: {
+            some: {
+              productCode: 'TRIP_PASS_30D',
+              endsAt: { gt: now },
+              showAdminGrantBanner: true,
+              adminGrantBannerShown: false,
+            }
+          }
+        }
+      },
+      include: {
+        group: {
+          include: {
+            entitlements: {
+              where: {
+                productCode: 'TRIP_PASS_30D',
+                endsAt: { gt: now },
+                showAdminGrantBanner: true,
+                adminGrantBannerShown: false,
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (groupMember && groupMember.group.entitlements[0]) {
+      await this.prisma.entitlement.update({
+        where: { id: groupMember.group.entitlements[0].id },
+        data: { adminGrantBannerShown: true }
+      });
+    }
+
+    return { success: true };
+  }
 }
 

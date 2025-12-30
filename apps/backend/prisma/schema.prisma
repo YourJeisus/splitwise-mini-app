@@ -220,6 +220,8 @@ model Entitlement {
   startsAt    DateTime
   endsAt      DateTime
   purchaseId  String?  @unique
+  showAdminGrantBanner Boolean @default(false)
+  adminGrantBannerShown Boolean @default(false)
 
   group    Group    @relation(fields: [groupId], references: [id])
   product  Product  @relation(fields: [productCode], references: [code])

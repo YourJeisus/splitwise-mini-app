@@ -108,3 +108,8 @@ ALTER TABLE "AdminAuditLog" ADD CONSTRAINT "AdminAuditLog_adminId_fkey" FOREIGN 
 
 
 
+
+
+
+
+

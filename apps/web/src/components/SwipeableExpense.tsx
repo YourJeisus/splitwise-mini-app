@@ -5,7 +5,9 @@ interface SwipeableExpenseProps {
   onEdit: () => void;
   onDelete: () => void;
   onLongPress?: () => void;
+  onSwipeOpen?: () => void;
   hasReceipt?: boolean;
+  dataOnbId?: string;
   children: React.ReactNode;
 }
 
@@ -14,7 +16,9 @@ export const SwipeableExpense = ({
   onEdit,
   onDelete,
   onLongPress,
+  onSwipeOpen,
   hasReceipt,
+  dataOnbId,
   children,
 }: SwipeableExpenseProps) => {
   const [swipeX, setSwipeX] = useState(0);
@@ -72,6 +76,7 @@ export const SwipeableExpense = ({
     setIsSwiping(false);
     if (swipeX > 60) {
       setSwipeX(120);
+      onSwipeOpen?.();
     } else {
       setSwipeX(0);
     }
@@ -82,7 +87,7 @@ export const SwipeableExpense = ({
   };
 
   return (
-    <div className="swipeable-expense-wrapper">
+    <div className="swipeable-expense-wrapper" data-onb={dataOnbId}>
       <div
         className={`expense-item ${hasReceipt ? "has-receipt" : ""}`}
         style={{
@@ -98,6 +103,7 @@ export const SwipeableExpense = ({
         {hasReceipt && (
           <div
             className="receipt-indicator"
+            data-onb={dataOnbId ? `${dataOnbId}-receipt` : undefined}
             title="Удерживайте для просмотра чека"
           >
             🧾

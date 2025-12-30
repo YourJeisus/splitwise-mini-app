@@ -11,7 +11,14 @@ import type {
   Receipt,
 } from "./api";
 import { AdminApp } from "./admin/AdminApp";
-import { Icons, SwipeableExpense, SwipeableGroup } from "./components";
+import {
+  Icons,
+  SwipeableExpense,
+  SwipeableGroup,
+  OnboardingProvider,
+  CoachmarkOverlay,
+} from "./components";
+import { markTipSeen } from "./utils/onboarding";
 import {
   CURRENCIES,
   getCurrencySymbol,
@@ -38,6 +45,7 @@ function MainApp() {
   const [user, setUser] = useState<User | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [showArchivedGroups, setShowArchivedGroups] = useState(false);
+  const [showCopyToast, setShowCopyToast] = useState(false);
 
   // Создание группы
   const [showCreateGroup, setShowCreateGroup] = useState(false);
@@ -192,6 +200,11 @@ function MainApp() {
   const [showHomeScreenTip, setShowHomeScreenTip] = useState(false);
   const [showActiveGroupsLimit, setShowActiveGroupsLimit] = useState(false);
   const [showAboutProduct, setShowAboutProduct] = useState(false);
+
+  // Admin Grant Banner
+  const [adminGrantBanner, setAdminGrantBanner] = useState<{
+    durationDays: number;
+  } | null>(null);
 
   const api = useMemo(
     () => createApiClient(initData || import.meta.env.VITE_TG_INIT_DATA || ""),
@@ -405,6 +418,17 @@ function MainApp() {
       const groupList = await api.listGroups();
       setGroups(groupList);
 
+      // Trigger first group creation tip if no groups
+      if (groupList.length === 0) {
+        // Condition is already in Provider, but we make sure context is fresh
+      }
+
+      // Проверяем наличие баннера от админа
+      const banner = await api.getAdminGrantBanner();
+      if (banner) {
+        setAdminGrantBanner({ durationDays: banner.durationDays });
+      }
+
       const pendingCode = sessionStorage.getItem("pendingInviteCode");
       if (pendingCode) {
         sessionStorage.removeItem("pendingInviteCode");
@@ -439,6 +463,9 @@ function MainApp() {
         await handleSelectGroup(updated[0].id);
       }
       window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
+
+      markTipSeen("create-group-empty");
+      markTipSeen("create-group-plus");
 
       // Показываем подсказку после создания первой группы
       if (isFirstGroup) {
@@ -522,6 +549,11 @@ function MainApp() {
     const link = `https://t.me/${botUsername}?startapp=${groupBalance.group.inviteCode}`;
     navigator.clipboard.writeText(link);
     window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
+
+    markTipSeen("invite-copy");
+
+    setShowCopyToast(true);
+    setTimeout(() => setShowCopyToast(false), 3000);
   };
 
   const handleShareInviteLink = () => {
@@ -532,6 +564,7 @@ function MainApp() {
     window.Telegram?.WebApp?.openTelegramLink?.(
       `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`
     );
+    markTipSeen("invite-share");
   };
 
   const openTripPassUpsellModal = (
@@ -1052,8 +1085,71 @@ function MainApp() {
     }
   };
 
+  const handleDismissAdminGrantBanner = async () => {
+    try {
+      await api.dismissAdminGrantBanner();
+      setAdminGrantBanner(null);
+    } catch (error) {
+      console.error("Error dismissing banner:", error);
+    }
+  };
+
+  const isModalOpen = useMemo(() => {
+    return (
+      showCreateGroup ||
+      showAddExpense ||
+      showSettle ||
+      showEditGroup ||
+      showTripSummary ||
+      !!viewingReceipt ||
+      !!pendingInvite ||
+      showLeaveConfirm !== null ||
+      showActiveGroupsLimit ||
+      showAboutProduct ||
+      !!tripPassUpsell ||
+      showTripPassSplitModal
+    );
+  }, [
+    showCreateGroup,
+    showAddExpense,
+    showSettle,
+    showEditGroup,
+    showTripSummary,
+    viewingReceipt,
+    pendingInvite,
+    showLeaveConfirm,
+    showActiveGroupsLimit,
+    showAboutProduct,
+    tripPassUpsell,
+    showTripPassSplitModal,
+  ]);
+
+  const onboardingContext = useMemo(
+    () => ({
+      userId: user?.id,
+      groupsCount: groups.length,
+      selectedGroupId: selectedGroup,
+      activeTab,
+      hasEditableExpenses: groupExpenses.some(
+        (e) => e.type === "expense" && e.createdBy.id === user?.id
+      ),
+      hasReceiptExpenses: groupExpenses.some(
+        (e) => e.type === "expense" && e.category === "receipt"
+      ),
+      isModalOpen,
+    }),
+    [user, groups.length, selectedGroup, activeTab, groupExpenses, isModalOpen]
+  );
+
   return (
-    <div className="app">
+    <OnboardingProvider context={onboardingContext}>
+      <div className="app">
+        <CoachmarkOverlay />
+      {showCopyToast && (
+        <div className="copy-toast">
+          Ссылка на группу скопирована
+        </div>
+      )}
       {/* Header */}
       <header className="header">
         <div className="header-left">
@@ -1076,6 +1172,25 @@ function MainApp() {
           О продукте
         </button>
       </header>
+
+      {/* Admin Grant Banner */}
+      {adminGrantBanner && (
+        <div className="admin-grant-banner">
+          <div className="admin-grant-banner-content">
+            <div className="admin-grant-banner-text">
+              Мы ценим, что вы с нами с самого начала.<br />
+              В знак благодарности дарим вам <strong>Trip Pass на {adminGrantBanner.durationDays} дней</strong>, он даёт полный доступ ко всем функциям приложения.<br /><br />
+              Если появятся вопросы или идеи, пишите в бота поддержки. Ссылка в описании профиля.
+            </div>
+            <button
+              className="admin-grant-banner-btn"
+              onClick={handleDismissAdminGrantBanner}
+            >
+              Спасибо
+            </button>
+          </div>
+        </div>
+      )}
 
       {inviteError && (
         <div className="invite-error">
@@ -1189,6 +1304,7 @@ function MainApp() {
             <span className="section-title">Текущая группа</span>
             <button
               className="add-group-btn"
+              data-onb="create-group-plus"
               onClick={() => setShowCreateGroup(true)}
             >
               {Icons.plus}
@@ -1413,6 +1529,7 @@ function MainApp() {
                   )}
                   <button
                     className="icon-btn"
+                    data-onb="invite-copy"
                     onClick={handleCopyInviteLink}
                     title="Копировать ссылку"
                   >
@@ -1420,6 +1537,7 @@ function MainApp() {
                   </button>
                   <button
                     className="icon-btn"
+                    data-onb="invite-share"
                     onClick={handleShareInviteLink}
                     title="Поделиться"
                   >
@@ -1624,8 +1742,26 @@ function MainApp() {
                 </div>
               ) : (
                 <div className="expenses-list">
-                  {groupExpenses.map((item) =>
-                    item.type === "settlement" ? (
+                  {groupExpenses.map((item, index) => {
+                    const isFirstEditable =
+                      item.type === "expense" &&
+                      item.createdBy.id === user?.id &&
+                      (!item.isSystem || item.systemType === "TRIP_PASS_FEE") &&
+                      index === groupExpenses.findIndex(
+                        (e) =>
+                          e.type === "expense" &&
+                          e.createdBy.id === user?.id &&
+                          (!e.isSystem || e.systemType === "TRIP_PASS_FEE")
+                      );
+
+                    const isFirstReceipt =
+                      item.type === "expense" &&
+                      item.category === "receipt" &&
+                      index === groupExpenses.findIndex(
+                        (e) => e.type === "expense" && e.category === "receipt"
+                      );
+
+                    return item.type === "settlement" ? (
                       <div
                         key={item.id}
                         className="expense-item settlement-item"
@@ -1671,6 +1807,13 @@ function MainApp() {
                     ) : (
                       <SwipeableExpense
                         key={item.id}
+                        dataOnbId={
+                          isFirstEditable
+                            ? "expense-swipe"
+                            : isFirstReceipt
+                              ? "expense-receipt"
+                              : undefined
+                        }
                         isOwner={
                           item.createdBy.id === user?.id &&
                           (!item.isSystem ||
@@ -1678,9 +1821,11 @@ function MainApp() {
                         }
                         onEdit={() => handleEditExpense(item)}
                         onDelete={() => handleDeleteExpense(item.id)}
+                        onSwipeOpen={() => markTipSeen("expense-swipe")}
                         hasReceipt={item.category === "receipt"}
                         onLongPress={async () => {
                           // Открыть модалку для claim позиций чека
+                          markTipSeen("receipt-hold");
                           try {
                             const receipt = await api.getReceiptByExpense(
                               item.id
@@ -1786,8 +1931,8 @@ function MainApp() {
                           })()}
                         </div>
                       </SwipeableExpense>
-                    )
-                  )}
+                    );
+                  })}
                 </div>
               )}
             </section>
@@ -1804,6 +1949,7 @@ function MainApp() {
           </p>
           <button
             className="primary-btn"
+            data-onb="create-group-empty"
             style={{ marginTop: 20, width: "auto", padding: "14px 32px" }}
             onClick={() => setShowCreateGroup(true)}
           >
@@ -4885,6 +5031,7 @@ function MainApp() {
           );
         })()}
     </div>
+    </OnboardingProvider>
   );
 }
 

@@ -158,7 +158,11 @@ export class AdminGroupsService {
       );
       await this.prisma.entitlement.update({
         where: { id: existing.id },
-        data: { endsAt: newEndsAt },
+        data: { 
+          endsAt: newEndsAt,
+          showAdminGrantBanner: true,
+          adminGrantBannerShown: false,
+        },
       });
       return { success: true, endsAt: newEndsAt, extended: true };
     }
@@ -170,6 +174,8 @@ export class AdminGroupsService {
         product: { connect: { code: "TRIP_PASS_30D" } },
         startsAt: now,
         endsAt,
+        showAdminGrantBanner: true,
+        adminGrantBannerShown: false,
       },
     });
 
