@@ -11,6 +11,7 @@ import { BotModule } from "./bot/bot.module";
 import { UploadModule } from "./upload/upload.module";
 import { MonetizationModule } from "./monetization/monetization.module";
 import { AdminModule } from "./admin/admin.module";
+import { SupportModule } from "./support/support.module";
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { AdminModule } from "./admin/admin.module";
     MonetizationModule,
     BotModule,
     AdminModule,
+    SupportModule,
   ],
   controllers: [AppController],
 })

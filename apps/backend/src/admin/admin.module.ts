@@ -8,6 +8,7 @@ import { AdminDashboardModule } from "./dashboard/admin-dashboard.module";
 import { AdminGroupsModule } from "./groups/admin-groups.module";
 import { AdminLogsModule } from "./logs/admin-logs.module";
 import { AdminTrackingModule } from "./tracking/admin-tracking.module";
+import { AdminSupportModule } from "./support/admin-support.module";
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AdminTrackingModule } from "./tracking/admin-tracking.module";
     AdminGroupsModule,
     AdminLogsModule,
     AdminTrackingModule,
+    AdminSupportModule,
   ],
 })
 export class AdminModule {}

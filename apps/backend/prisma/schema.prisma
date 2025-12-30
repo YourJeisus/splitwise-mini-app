@@ -28,6 +28,7 @@ model User {
   settlementsTo   Settlement[] @relation("SettlementTo")
   purchases    Purchase[]
   notifications Notification[]
+  supportTickets SupportTicket[]
   receiptClaims ReceiptItemClaim[]
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
@@ -333,10 +334,19 @@ model AdminUser {
   passwordHash String
   role         AdminRole @default(READ_ONLY)
   enabled      Boolean   @default(true)
+  
+  telegramUserId String? @unique
+  telegramChatId String? @unique
+  supportNotificationsEnabled Boolean @default(true)
+
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   auditLogs AdminAuditLog[]
+  assignedTickets SupportTicket[] @relation("AssignedAdmin")
+  supportMessages SupportMessage[]
+  notifications AdminNotification[]
+  linkTokens AdminTelegramLinkToken[]
 }
 
 enum AdminRole {
@@ -365,6 +375,80 @@ model AdminAuditLog {
   @@index([adminId])
   @@index([targetType, targetId])
   @@index([createdAt])
+}
+
+// ============ SUPPORT ============
+
+enum SupportStatus {
+  OPEN
+  CLOSED
+}
+
+model SupportTicket {
+  id              String        @id @default(uuid())
+  userId          String
+  status          SupportStatus @default(OPEN)
+  assignedAdminId String?
+  lastMessageAt   DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id])
+  assignedAdmin AdminUser?     @relation("AssignedAdmin", fields: [assignedAdminId], references: [id])
+  messages      SupportMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([assignedAdminId])
+}
+
+enum MessageDirection {
+  USER
+  ADMIN
+}
+
+model SupportMessage {
+  id                String           @id @default(uuid())
+  ticketId          String
+  direction         MessageDirection
+  text              String
+  telegramMessageId String?
+  adminId           String?
+  createdAt         DateTime         @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  admin  AdminUser?    @relation(fields: [adminId], references: [id])
+
+  @@index([ticketId])
+  @@index([createdAt])
+}
+
+model AdminNotification {
+  id        String   @id @default(uuid())
+  adminId   String
+  type      String
+  data      Json
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  admin AdminUser @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+model AdminTelegramLinkToken {
+  id        String   @id @default(uuid())
+  adminId   String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  admin AdminUser @relation(fields: [adminId], references: [id])
+
+  @@index([token])
 }
 
 // Tracking links для отслеживания переходов по реферальным ссылкам бота
