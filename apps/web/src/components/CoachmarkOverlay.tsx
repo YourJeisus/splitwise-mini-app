@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useOnboarding } from './OnboardingProvider';
 
 export const CoachmarkOverlay: React.FC = () => {
   const { activeTip, markSeen } = useOnboarding();
   const [rect, setRect] = useState<DOMRect | null>(null);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number | null>(null);
 
   const updateRect = () => {
     if (activeTip) {
@@ -29,7 +29,7 @@ export const CoachmarkOverlay: React.FC = () => {
   useEffect(() => {
     requestRef.current = requestAnimationFrame(updateRect);
     return () => {
-      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      if (requestRef.current !== null) cancelAnimationFrame(requestRef.current);
     };
   }, [activeTip]);
 

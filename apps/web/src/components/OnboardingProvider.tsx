@@ -8,6 +8,8 @@ export type TipId =
   | 'expense-swipe'
   | 'receipt-hold';
 
+type OnboardingContextInput = Omit<OnboardingContextType, 'activeTip' | 'markSeen' | 'dismiss'>;
+
 interface TipDef {
   id: TipId;
   title: string;
@@ -15,7 +17,7 @@ interface TipDef {
   anchor: string;
   actionType?: 'swipe' | 'hold' | 'click';
   priority: number;
-  condition: (context: OnboardingContextType) => boolean;
+  condition: (context: OnboardingContextInput) => boolean;
 }
 
 interface OnboardingContextType {
@@ -38,7 +40,7 @@ const ONBOARDING_VERSION = 'v1';
 
 export const OnboardingProvider: React.FC<{
   children: React.ReactNode;
-  context: Omit<OnboardingContextType, 'activeTip' | 'markSeen' | 'dismiss'>;
+  context: OnboardingContextInput;
 }> = ({ children, context }) => {
   const [seenTipIds, setSeenTipIds] = useState<Set<TipId>>(new Set());
   const [dismissedTipId, setDismissedTipId] = useState<TipId | null>(null);
@@ -75,11 +77,6 @@ export const OnboardingProvider: React.FC<{
       return next;
     });
   }, [saveProgress]);
-
-  const dismiss = useCallback(() => {
-    // Dismiss only for current session or until context change
-    // For now, let's just hide the current tip
-  }, []);
 
   useEffect(() => {
     const handler = (e: any) => markSeen(e.detail);
@@ -145,11 +142,17 @@ export const OnboardingProvider: React.FC<{
     
     const available = tips
       .filter(tip => !seenTipIds.has(tip.id))
+      .filter(tip => tip.id !== dismissedTipId)
       .filter(tip => tip.condition(context))
       .sort((a, b) => a.priority - b.priority);
       
     return available[0] || null;
-  }, [tips, seenTipIds, context]);
+  }, [tips, seenTipIds, dismissedTipId, context]);
+
+  const dismiss = useCallback(() => {
+    if (!activeTip) return;
+    setDismissedTipId(activeTip.id);
+  }, [activeTip]);
 
   const value = useMemo(() => ({
     ...context,
