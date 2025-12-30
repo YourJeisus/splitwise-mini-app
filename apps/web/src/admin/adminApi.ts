@@ -66,6 +66,11 @@ export const adminApi = {
     }),
   getMe: () =>
     request<{ id: string; email: string; role: string }>("/admin/auth/me"),
+  createAdmin: (data: { email: string; password?: string; role: string }) =>
+    request<any>("/admin/auth/create-admin", {
+      method: "POST",
+      body: data,
+    }),
 
   // Dashboard
   getKPI: (period: string) =>
